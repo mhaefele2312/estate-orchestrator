@@ -1,0 +1,9 @@
+{
+  "_readme": "Edit paths once Google Drive and Cryptomator are set up on your laptop.",
+
+  "gold_backup_path": "PLACEHOLDER — set this to your Gold-Backup/ folder path inside Google Drive",
+  "log_path": "../../logs",
+
+  "_warning_hours_readme": "Alert if Gold backup folder has not been modified in this many hours.",
+  "warning_after_hours": 168
+}

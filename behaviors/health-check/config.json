@@ -1,0 +1,34 @@
+{
+  "_readme": "Edit vault_path once your Obsidian vault is set up. Until then, run --test mode only.",
+
+  "vault_path": "PLACEHOLDER — set this to your Obsidian vault root folder path",
+  "gold_backup_path": "PLACEHOLDER — set this to your Gold-Backup/ folder in Google Drive",
+  "log_path": "../../logs",
+
+  "required_vault_folders": [
+    "Inbox",
+    "Accepted",
+    "Published",
+    "01-Properties",
+    "02-Entities",
+    "03-Accounts",
+    "04-Tax",
+    "05-Projects",
+    "06-Contacts",
+    "07-Trips",
+    "08-Family",
+    "09-Health",
+    "10-Knowledge",
+    "_prompts",
+    "_archive",
+    "_views"
+  ],
+
+  "stale_inbox_hours": 48,
+
+  "gold_classification_markers": [
+    "classification: gold",
+    "vault: gold",
+    "tier: gold"
+  ]
+}
