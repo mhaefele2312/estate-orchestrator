@@ -1,0 +1,9 @@
+{
+  "_readme": "Edit the paths below once your Obsidian vault is set up. Until then, use test mode only.",
+  "reviewer": "MH",
+  "inbox_path": "PLACEHOLDER — set this to your Obsidian vault Inbox/ folder path",
+  "accepted_path": "PLACEHOLDER — set this to your Obsidian vault Accepted/ folder path",
+  "log_path": "../../logs",
+  "test_inbox_path": "../../tests/fake-inbox",
+  "test_accepted_path": "../../tests/fake-accepted"
+}
