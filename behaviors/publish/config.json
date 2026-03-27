@@ -1,0 +1,38 @@
+{
+  "_readme": "Edit the paths below once your Obsidian vault is set up. Until then, use test mode only.",
+  "reviewer": "MH",
+  "accepted_path": "PLACEHOLDER — set this to your Obsidian vault Accepted/ folder path",
+  "published_path": "PLACEHOLDER — set this to your Obsidian vault Published/ folder path",
+  "log_path": "../../logs",
+  "test_accepted_path": "../../tests/fake-accepted",
+  "test_published_path": "../../tests/fake-published",
+
+  "_pii_patterns_readme": "These are the patterns that cause a file to be BLOCKED from publishing.",
+  "pii_patterns": [
+    "\\d{3}-\\d{2}-\\d{4}",
+    "\\d{9}",
+    "(?i)ssn",
+    "(?i)social security",
+    "\\d{4}[\\s\\-]\\d{4}[\\s\\-]\\d{4}[\\s\\-]\\d{4}",
+    "(?i)account\\s*number\\s*[:\\-]\\s*\\d+",
+    "(?i)routing\\s*number\\s*[:\\-]\\s*\\d+",
+    "\\b\\d{3}[.\\-\\s]\\d{3}[.\\-\\s]\\d{4}\\b"
+  ],
+
+  "_financial_fields_readme": "These frontmatter fields are ALLOWED in Published files. All other financial data is stripped.",
+  "financial_field_allowlist": [
+    "holding", "qty", "mv", "Duration", "Expense Ratio",
+    "provider", "ending_balance", "positions"
+  ],
+
+  "_required_provenance_readme": "Every file must have ALL of these fields or it is blocked from publishing.",
+  "required_provenance_fields": [
+    "source",
+    "captured_date",
+    "review_timestamp",
+    "reviewer",
+    "derivation_path",
+    "visibility",
+    "classification"
+  ]
+}
