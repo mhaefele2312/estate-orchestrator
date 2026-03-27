@@ -1,8 +1,8 @@
 {
   "_readme": "Edit the paths below once your Obsidian vault is set up. Until then, use test mode only.",
   "reviewer": "MH",
-  "accepted_path": "PLACEHOLDER — set this to your Obsidian vault Accepted/ folder path",
-  "published_path": "PLACEHOLDER — set this to your Obsidian vault Published/ folder path",
+  "accepted_path": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Accepted",
+  "published_path": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Published",
   "log_path": "../../logs",
   "test_accepted_path": "../../tests/fake-accepted",
   "test_published_path": "../../tests/fake-published",

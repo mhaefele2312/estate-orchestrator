@@ -1,8 +1,8 @@
 {
-  "_readme": "Edit the paths below once your Obsidian vault is set up. Until then, use test mode only.",
+  "_readme": "Paths updated 2026-03-27. Obsidian vault and Google Drive confirmed on this machine.",
   "reviewer": "MH",
-  "inbox_path": "PLACEHOLDER — set this to your Obsidian vault Inbox/ folder path",
-  "accepted_path": "PLACEHOLDER — set this to your Obsidian vault Accepted/ folder path",
+  "inbox_path": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Inbox",
+  "accepted_path": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Accepted",
   "log_path": "../../logs",
   "test_inbox_path": "../../tests/fake-inbox",
   "test_accepted_path": "../../tests/fake-accepted"
