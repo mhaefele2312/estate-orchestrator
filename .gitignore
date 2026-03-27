@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+
+# Logs (keep the folder, ignore the files)
+logs/*.log
+logs/*.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Secrets — never commit these
+*.env
+config/secrets.*
+config/paths_local.*

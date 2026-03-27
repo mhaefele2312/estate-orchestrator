@@ -1,0 +1,41 @@
+# Estate Orchestrator — Cursor Rules
+# These rules apply to every file in this project.
+# Cursor's AI reads these automatically. Do not delete this file.
+
+## What this project is
+This is the Estate Operating System boundary orchestrator for MH.
+It enforces security boundaries between vault layers.
+It operates on markdown files with YAML frontmatter.
+
+## The golden rules — never break these
+1. All scripts must default to DRY-RUN mode. Nothing moves, writes, or deletes without an explicit --confirm flag.
+2. Every script must print plain-English output describing exactly what it did or would do.
+3. Scripts must never touch files outside their explicitly designated input/output directories.
+4. Every script must exit with a clear error message if anything goes wrong. Never fail silently.
+5. Never modify vault files except through the designated behavior functions.
+6. Always validate YAML frontmatter before writing. If validation fails, abort and report.
+7. Every behavior must have a --test mode that runs against fake test data, not real vault files.
+
+## Output format — every script must follow this
+- DRY RUN: [action that would happen]
+- ACTION: [action that was taken]
+- ERROR: [what went wrong]
+- PASS: [test passed]
+- FAIL: [test failed]
+- DONE: [summary at end of every run]
+
+## Directory rules
+- behaviors/ — one subfolder per behavior (gate, publish, health-check, backup-check, digest-generate)
+- tests/ — test data and test runner scripts only
+- logs/ — timestamped log files only, never delete these
+- Never create files outside these directories without explicit instruction
+
+## Language
+- Python only. No PowerShell. No bash scripts.
+- Python 3.10+. Standard library only unless explicitly approved.
+- Every function must have a plain-English docstring.
+
+## What this project is NOT
+- Not a database. Not a web server. Not a UI.
+- Not a replacement for human judgment. Every behavior requires human approval or review.
+- Never connect to the internet. Never call external APIs.
