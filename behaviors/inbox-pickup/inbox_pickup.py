@@ -4,11 +4,11 @@ inbox-pickup.py
 Moves new capture files from Google Drive inboxes into your Obsidian Vault Inbox.
 
 Sources checked:
-  - G:\My Drive\MHH-Inbox\   (your Android captures)
-  - G:\My Drive\HBS-Inbox\   (spouse captures, Phase 2)
+  - G:/My Drive/MHH-Inbox/   (your Android captures)
+  - G:/My Drive/HBS-Inbox/   (spouse captures, Phase 2)
 
 Destination:
-  - C:\Users\mhhro\Documents\Obsidian Vault\Inbox\
+  - C:/Users/mhhro/Documents/Obsidian Vault/Inbox/
 
 Rules:
   - Only moves .md and .txt files
