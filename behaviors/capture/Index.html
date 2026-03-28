@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Estate Capture</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    .container { max-width: 520px; width: 100%; text-align: center; }
+    h1 { font-size: 1.4em; margin-bottom: 5px; color: #a0c4ff; }
+    .subtitle { color: #888; margin-bottom: 30px; font-size: 0.95em; line-height: 1.5; }
+    .progress-bar { background: #333; border-radius: 10px; height: 6px; width: 100%; margin-bottom: 20px; }
+    .progress-fill { background: #a0c4ff; border-radius: 10px; height: 6px; transition: width 0.4s; }
+    .question-num { color: #888; font-size: 0.9em; margin-bottom: 12px; }
+    .question { font-size: 1.25em; line-height: 1.5; margin-bottom: 25px; min-height: 70px; }
+    .answer-box {
+      background: #16213e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      min-height: 80px;
+      text-align: left;
+      font-size: 1em;
+      color: #ccc;
+      margin-bottom: 20px;
+      line-height: 1.5;
+    }
+    .answer-box[contenteditable="true"] { border-color: #a0c4ff; outline: none; }
+    .mic-btn {
+      background: #e94560;
+      border: none;
+      border-radius: 50%;
+      width: 72px;
+      height: 72px;
+      font-size: 1.8em;
+      cursor: pointer;
+      margin: 5px;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .mic-btn.recording {
+      background: #ff6b6b;
+      animation: pulse 1s infinite;
+      box-shadow: 0 0 20px rgba(255,107,107,0.5);
+    }
+    @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
+    .status { color: #888; font-size: 0.85em; margin: 10px 0 15px; min-height: 20px; }
+    .btn-row { display: flex; gap: 10px; margin-top: 10px; }
+    .next-btn {
+      background: #0f3460;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 14px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      flex: 1;
+    }
+    .skip-btn {
+      background: #2a2a3e;
+      color: #888;
+      border: none;
+      border-radius: 25px;
+      padding: 14px 20px;
+      font-size: 1em;
+      cursor: pointer;
+      flex: 1;
+    }
+    .start-btn {
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 20px 50px;
+      font-size: 1.3em;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .summary-item { margin-bottom: 18px; text-align: left; }
+    .summary-q { color: #a0c4ff; font-size: 0.82em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .summary-a { background: #16213e; padding: 12px; border-radius: 8px; font-size: 0.95em; line-height: 1.5; }
+    .submit-btn {
+      background: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 18px 40px;
+      font-size: 1.2em;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 25px;
+    }
+    .saved-icon { font-size: 3em; margin-bottom: 15px; }
+    .saved-msg { color: #2ecc71; font-size: 1.1em; margin-bottom: 10px; }
+    .saved-sub { color: #888; font-size: 0.9em; line-height: 1.6; }
+    .new-btn {
+      background: #0f3460;
+      color: white;
+      border: none;
+      border-radius: 25px;
+      padding: 14px 35px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 30px;
+    }
+    .error-msg { color: #e94560; font-size: 0.9em; margin-top: 10px; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- START SCREEN -->
+  <div id="start-screen">
+    <h1>🏡 Estate Capture</h1>
+    <p class="subtitle">9 questions · ~5 minutes<br>Voice-guided daily brain dump</p>
+    <button class="start-btn" onclick="startCapture()">▶ &nbsp;Start</button>
+  </div>
+
+  <!-- QUESTION SCREEN -->
+  <div id="question-screen" style="display:none">
+    <h1>🏡 Estate Capture</h1>
+    <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
+    <div class="question-num" id="q-num"></div>
+    <div class="question" id="q-text"></div>
+    <div class="answer-box" id="answer-box" contenteditable="false">Listening…</div>
+    <button class="mic-btn" id="mic-btn" onclick="toggleRecording()" title="Tap to record / stop">🎙</button>
+    <div class="status" id="status">Reading question aloud…</div>
+    <div class="btn-row">
+      <button class="next-btn" id="next-btn" onclick="nextQuestion()" style="display:none">Next →</button>
+      <button class="skip-btn" onclick="skipQuestion()">Skip</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY SCREEN -->
+  <div id="summary-screen" style="display:none">
+    <h1>🏡 Review</h1>
+    <p class="subtitle">Review your capture before saving</p>
+    <div id="summary-content"></div>
+    <button class="submit-btn" onclick="submitCapture()">💾 &nbsp;Save to Estate OS</button>
+    <div class="error-msg" id="error-msg" style="display:none"></div>
+  </div>
+
+  <!-- SAVED SCREEN -->
+  <div id="saved-screen" style="display:none">
+    <div class="saved-icon">✅</div>
+    <h1>🏡 Saved</h1>
+    <p class="saved-msg">Capture saved to your inbox</p>
+    <p class="saved-sub">Syncing to laptop via Google Drive.<br>Gate will process it at your next review session.</p>
+    <button class="new-btn" onclick="resetApp()">New Capture</button>
+  </div>
+
+</div>
+
+<script>
+// ── QUESTIONS ──────────────────────────────────────────────────────────────
+const QUESTIONS = [
+  "What's on your mind right now that you haven't captured yet?",
+  "What did you work on or commit to yesterday that needs follow-up?",
+  "Who needs something from you today?",
+  "Who do you need to reach out to — and what for?",
+  "How can they help you? How can you help them?",
+  "What are your top priorities today?",
+  "Anything happening with the house, cars, finances, legal, or family that needs tracking?",
+  "Any documents, bills, appointments, or deadlines coming up?",
+  "What else is floating in your head that belongs in the system?"
+];
+
+// ── STATE ──────────────────────────────────────────────────────────────────
+let currentQ  = 0;
+let answers   = new Array(QUESTIONS.length).fill('');
+let recognition = null;
+let isRecording = false;
+const synth   = window.speechSynthesis;
+
+// ── START ──────────────────────────────────────────────────────────────────
+function startCapture() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('question-screen').style.display = 'block';
+  showQuestion(0);
+}
+
+// ── SHOW QUESTION ──────────────────────────────────────────────────────────
+function showQuestion(index) {
+  currentQ = index;
+  const total = QUESTIONS.length;
+
+  document.getElementById('q-num').textContent    = 'Question ' + (index + 1) + ' of ' + total;
+  document.getElementById('q-text').textContent   = QUESTIONS[index];
+  document.getElementById('progress').style.width = Math.round((index / total) * 100) + '%';
+  document.getElementById('answer-box').textContent = answers[index] || '';
+  document.getElementById('answer-box').contentEditable = 'false';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('mic-btn').classList.remove('recording');
+  document.getElementById('status').textContent = 'Reading question aloud…';
+  isRecording = false;
+
+  // Read question aloud, then auto-start recording
+  synth.cancel();
+  const utter = new SpeechSynthesisUtterance(QUESTIONS[index]);
+  utter.rate  = 0.88;
+  utter.pitch = 1;
+  utter.onend = function() { startRecording(); };
+  synth.speak(utter);
+}
+
+// ── RECORDING ─────────────────────────────────────────────────────────────
+function startRecording() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) {
+    // Fallback: editable text box
+    document.getElementById('status').textContent = 'Voice not supported — type your answer below';
+    document.getElementById('answer-box').contentEditable = 'true';
+    document.getElementById('answer-box').textContent = '';
+    document.getElementById('answer-box').focus();
+    document.getElementById('next-btn').style.display = 'block';
+    return;
+  }
+
+  recognition = new SR();
+  recognition.continuous      = false;
+  recognition.interimResults  = true;
+  recognition.lang            = 'en-US';
+  recognition.maxAlternatives = 1;
+
+  recognition.onstart = function() {
+    isRecording = true;
+    document.getElementById('mic-btn').classList.add('recording');
+    document.getElementById('status').textContent = '🔴 Recording… tap mic to stop';
+    document.getElementById('answer-box').textContent = '…';
+  };
+
+  recognition.onresult = function(e) {
+    let transcript = '';
+    for (let i = 0; i < e.results.length; i++) {
+      transcript += e.results[i][0].transcript;
+    }
+    document.getElementById('answer-box').textContent = transcript;
+    if (e.results[e.results.length - 1].isFinal) {
+      answers[currentQ] = transcript;
+    }
+  };
+
+  recognition.onspeechend = function() {
+    recognition.stop();
+  };
+
+  recognition.onend = function() {
+    isRecording = false;
+    document.getElementById('mic-btn').classList.remove('recording');
+    if (answers[currentQ]) {
+      document.getElementById('status').textContent = '✓ Got it — tap Next or re-record';
+      document.getElementById('next-btn').style.display = 'block';
+    } else {
+      document.getElementById('status').textContent = 'Nothing captured — tap mic to try again';
+    }
+  };
+
+  recognition.onerror = function(e) {
+    isRecording = false;
+    document.getElementById('mic-btn').classList.remove('recording');
+    document.getElementById('status').textContent = 'Error: ' + e.error + ' — tap mic to retry';
+  };
+
+  recognition.start();
+}
+
+function toggleRecording() {
+  synth.cancel();
+  if (isRecording) {
+    recognition.stop();
+  } else {
+    startRecording();
+  }
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────────
+function nextQuestion() {
+  // Capture any manually typed answer
+  const box = document.getElementById('answer-box');
+  if (box.contentEditable === 'true') {
+    answers[currentQ] = box.textContent.trim();
+  }
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  synth.cancel();
+
+  if (currentQ < QUESTIONS.length - 1) {
+    showQuestion(currentQ + 1);
+  } else {
+    showSummary();
+  }
+}
+
+function skipQuestion() {
+  if (recognition) { try { recognition.stop(); } catch(e){} }
+  synth.cancel();
+  answers[currentQ] = '';
+  if (currentQ < QUESTIONS.length - 1) {
+    showQuestion(currentQ + 1);
+  } else {
+    showSummary();
+  }
+}
+
+// ── SUMMARY ────────────────────────────────────────────────────────────────
+function showSummary() {
+  document.getElementById('question-screen').style.display = 'none';
+  document.getElementById('summary-screen').style.display  = 'block';
+
+  let html = '';
+  QUESTIONS.forEach(function(q, i) {
+    if (answers[i]) {
+      html += '<div class="summary-item">'
+            + '<div class="summary-q">' + q + '</div>'
+            + '<div class="summary-a">' + answers[i] + '</div>'
+            + '</div>';
+    }
+  });
+  if (!html) {
+    html = '<p style="color:#888">No answers captured. Go back and try again.</p>';
+  }
+  document.getElementById('summary-content').innerHTML = html;
+}
+
+// ── BUILD MARKDOWN ─────────────────────────────────────────────────────────
+function buildMarkdown() {
+  const now     = new Date();
+  const dateStr = now.toISOString().split('T')[0];
+  const hh      = String(now.getHours()).padStart(2,'0');
+  const mm      = String(now.getMinutes()).padStart(2,'0');
+  const timeStr = hh + ':' + mm;
+  const filename = 'capture-' + dateStr + '-' + hh + mm + '-MHH.md';
+
+  let md = '---\n'
+         + 'source: voice-capture\n'
+         + 'captured_date: ' + dateStr + '\n'
+         + 'capture_time: ' + timeStr + '\n'
+         + 'visibility: MHH\n'
+         + 'classification: general\n'
+         + 'capture_type: daily-brain-dump\n'
+         + '---\n\n'
+         + '## Daily Capture — ' + dateStr + ' ' + timeStr + '\n\n';
+
+  QUESTIONS.forEach(function(q, i) {
+    if (answers[i]) {
+      md += '### ' + q + '\n' + answers[i] + '\n\n';
+    }
+  });
+
+  return { content: md, filename: filename };
+}
+
+// ── SUBMIT ─────────────────────────────────────────────────────────────────
+function submitCapture() {
+  const { content, filename } = buildMarkdown();
+  document.getElementById('error-msg').style.display = 'none';
+  document.querySelector('.submit-btn').textContent  = 'Saving…';
+  document.querySelector('.submit-btn').disabled     = true;
+
+  google.script.run
+    .withSuccessHandler(function() {
+      document.getElementById('summary-screen').style.display = 'none';
+      document.getElementById('saved-screen').style.display   = 'block';
+    })
+    .withFailureHandler(function(err) {
+      document.querySelector('.submit-btn').textContent = '💾  Save to Estate OS';
+      document.querySelector('.submit-btn').disabled   = false;
+      document.getElementById('error-msg').style.display = 'block';
+      document.getElementById('error-msg').textContent   = 'Save failed: ' + err.message + '. Check that MHH-Inbox exists in your Google Drive.';
+    })
+    .saveCapture(content, filename);
+}
+
+// ── RESET ──────────────────────────────────────────────────────────────────
+function resetApp() {
+  answers  = new Array(QUESTIONS.length).fill('');
+  currentQ = 0;
+  document.getElementById('saved-screen').style.display   = 'none';
+  document.getElementById('start-screen').style.display   = 'block';
+}
+</script>
+</body>
+</html>

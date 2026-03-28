@@ -1,0 +1,25 @@
+{
+  "_readme": "inbox-pickup moves new files from Google Drive inboxes into your Obsidian Vault Inbox.",
+
+  "obsidian_inbox_path": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Inbox",
+
+  "sources": [
+    {
+      "label": "MHH-Inbox",
+      "path": "G:\\My Drive\\MHH-Inbox"
+    },
+    {
+      "label": "HBS-Inbox",
+      "path": "G:\\My Drive\\HBS-Inbox"
+    }
+  ],
+
+  "_test_readme": "Test mode uses fake folders inside the orchestrator.",
+  "test_dest_path": "../../tests/fake-inbox",
+  "test_sources": [
+    {
+      "label": "MHH-Inbox (test)",
+      "path": "../../tests/fake-drive-inbox"
+    }
+  ]
+}
