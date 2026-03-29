@@ -15,37 +15,58 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
     }
-    .container { max-width: 520px; width: 100%; text-align: center; }
-    h1 { font-size: 1.4em; margin-bottom: 5px; color: #a0c4ff; }
-    .subtitle { color: #888; margin-bottom: 30px; font-size: 0.95em; line-height: 1.5; }
-    .progress-bar { background: #333; border-radius: 10px; height: 6px; width: 100%; margin-bottom: 20px; }
-    .progress-fill { background: #a0c4ff; border-radius: 10px; height: 6px; transition: width 0.4s; }
-    .question-num { color: #888; font-size: 0.9em; margin-bottom: 12px; }
-    .question { font-size: 1.25em; line-height: 1.5; margin-bottom: 25px; min-height: 70px; }
-    .answer-box {
-      background: #16213e;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 15px;
-      min-height: 80px;
-      text-align: left;
-      font-size: 1em;
-      color: #ccc;
+    .container { max-width: 520px; width: 100%; }
+    h1 { font-size: 1.4em; margin-bottom: 5px; color: #a0c4ff; text-align: center; }
+    .mode-label {
+      text-align: center;
+      color: #888;
+      font-size: 0.9em;
       margin-bottom: 20px;
-      line-height: 1.5;
     }
-    .answer-box[contenteditable="true"] { border-color: #a0c4ff; outline: none; }
+    .mode-label span { color: #a0c4ff; font-weight: bold; }
+    .progress-bar { background: #333; border-radius: 10px; height: 6px; width: 100%; margin-bottom: 25px; }
+    .progress-fill { background: #a0c4ff; border-radius: 10px; height: 6px; transition: width 0.4s; }
+
+    /* Question prompts */
+    .prompts-list { list-style: none; padding: 0; margin: 0 0 25px 0; }
+    .prompts-list li {
+      padding: 10px 14px;
+      margin-bottom: 6px;
+      background: #16213e;
+      border-radius: 8px;
+      font-size: 0.95em;
+      line-height: 1.4;
+      color: #ccc;
+      border-left: 3px solid #333;
+      transition: all 0.3s;
+    }
+    .prompts-list li.active {
+      border-left-color: #a0c4ff;
+      color: #fff;
+      background: #1a2a4e;
+    }
+    .prompts-list li.done {
+      border-left-color: #2ecc71;
+      color: #888;
+    }
+    .prompt-num {
+      display: inline-block;
+      width: 22px;
+      color: #666;
+      font-size: 0.85em;
+    }
+
+    /* Recording area */
+    .record-area { text-align: center; margin: 20px 0; }
     .mic-btn {
       background: #e94560;
       border: none;
       border-radius: 50%;
-      width: 72px;
-      height: 72px;
-      font-size: 1.8em;
+      width: 80px;
+      height: 80px;
+      font-size: 2em;
       cursor: pointer;
-      margin: 5px;
       transition: all 0.2s;
       display: inline-flex;
       align-items: center;
@@ -54,12 +75,46 @@
     .mic-btn.recording {
       background: #ff6b6b;
       animation: pulse 1s infinite;
-      box-shadow: 0 0 20px rgba(255,107,107,0.5);
+      box-shadow: 0 0 25px rgba(255,107,107,0.5);
     }
     @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.08); } }
-    .status { color: #888; font-size: 0.85em; margin: 10px 0 15px; min-height: 20px; }
-    .btn-row { display: flex; gap: 10px; margin-top: 10px; }
-    .next-btn {
+    .record-status {
+      color: #888;
+      font-size: 0.85em;
+      margin-top: 12px;
+      min-height: 20px;
+    }
+    .record-timer {
+      color: #e94560;
+      font-size: 1.1em;
+      font-family: monospace;
+      margin-top: 6px;
+      min-height: 24px;
+    }
+
+    /* Transcript */
+    .transcript-area {
+      background: #16213e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 15px;
+      min-height: 100px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.95em;
+      color: #ccc;
+      margin: 15px 0;
+      line-height: 1.5;
+    }
+    .transcript-area[contenteditable="true"] {
+      border-color: #a0c4ff;
+      outline: none;
+    }
+    .transcript-placeholder { color: #555; font-style: italic; }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; margin-top: 15px; }
+    .btn-primary {
       background: #0f3460;
       color: white;
       border: none;
@@ -69,7 +124,7 @@
       cursor: pointer;
       flex: 1;
     }
-    .skip-btn {
+    .btn-secondary {
       background: #2a2a3e;
       color: #888;
       border: none;
@@ -79,7 +134,7 @@
       cursor: pointer;
       flex: 1;
     }
-    .start-btn {
+    .btn-start {
       background: #e94560;
       color: white;
       border: none;
@@ -90,10 +145,7 @@
       width: 100%;
       margin-top: 10px;
     }
-    .summary-item { margin-bottom: 18px; text-align: left; }
-    .summary-q { color: #a0c4ff; font-size: 0.82em; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em; }
-    .summary-a { background: #16213e; padding: 12px; border-radius: 8px; font-size: 0.95em; line-height: 1.5; }
-    .submit-btn {
+    .btn-save {
       background: #2ecc71;
       color: white;
       border: none;
@@ -102,12 +154,24 @@
       font-size: 1.2em;
       cursor: pointer;
       width: 100%;
-      margin-top: 25px;
+      margin-top: 20px;
     }
+
+    /* Start screen */
+    .start-screen { text-align: center; margin-top: 30vh; }
+    .start-subtitle { color: #888; font-size: 0.95em; line-height: 1.5; margin-bottom: 30px; }
+
+    /* Summary */
+    .summary-item { margin-bottom: 12px; text-align: left; }
+    .summary-label { color: #a0c4ff; font-size: 0.82em; margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+    .summary-text { background: #16213e; padding: 10px; border-radius: 8px; font-size: 0.9em; line-height: 1.5; }
+
+    /* Saved */
+    .saved-screen { text-align: center; margin-top: 25vh; }
     .saved-icon { font-size: 3em; margin-bottom: 15px; }
     .saved-msg { color: #2ecc71; font-size: 1.1em; margin-bottom: 10px; }
     .saved-sub { color: #888; font-size: 0.9em; line-height: 1.6; }
-    .new-btn {
+    .btn-new {
       background: #0f3460;
       color: white;
       border: none;
@@ -117,280 +181,372 @@
       cursor: pointer;
       margin-top: 30px;
     }
-    .error-msg { color: #e94560; font-size: 0.9em; margin-top: 10px; }
+    .error-msg { color: #e94560; font-size: 0.9em; margin-top: 10px; display: none; }
   </style>
 </head>
 <body>
 <div class="container">
 
   <!-- START SCREEN -->
-  <div id="start-screen">
-    <h1>🏡 Estate Capture</h1>
-    <p class="subtitle">9 questions · ~5 minutes<br>Voice-guided daily brain dump</p>
-    <button class="start-btn" onclick="startCapture()">▶ &nbsp;Start</button>
+  <div id="start-screen" class="start-screen">
+    <h1>Estate Capture</h1>
+    <p class="start-subtitle" id="start-info">Loading...</p>
+    <button class="btn-start" onclick="startCapture()">Start</button>
   </div>
 
-  <!-- QUESTION SCREEN -->
-  <div id="question-screen" style="display:none">
-    <h1>🏡 Estate Capture</h1>
+  <!-- CAPTURE SCREEN -->
+  <div id="capture-screen" style="display:none">
+    <h1>Estate Capture</h1>
+    <div class="mode-label">Mode: <span id="mode-display"></span></div>
     <div class="progress-bar"><div class="progress-fill" id="progress"></div></div>
-    <div class="question-num" id="q-num"></div>
-    <div class="question" id="q-text"></div>
-    <div class="answer-box" id="answer-box" contenteditable="false">Listening…</div>
-    <button class="mic-btn" id="mic-btn" onclick="toggleRecording()" title="Tap to record / stop">🎙</button>
-    <div class="status" id="status">Reading question aloud…</div>
+
+    <!-- Prompts shown as text list -->
+    <ul class="prompts-list" id="prompts-list"></ul>
+
+    <!-- Recording controls -->
+    <div class="record-area">
+      <button class="mic-btn" id="mic-btn" onclick="toggleRecording()">&#x1F3A4;</button>
+      <div class="record-status" id="record-status">Tap to start recording</div>
+      <div class="record-timer" id="record-timer"></div>
+    </div>
+
+    <!-- Live transcript -->
+    <div class="transcript-area" id="transcript-area">
+      <span class="transcript-placeholder">Your transcript will appear here as you speak...</span>
+    </div>
+
+    <!-- Navigation -->
     <div class="btn-row">
-      <button class="next-btn" id="next-btn" onclick="nextQuestion()" style="display:none">Next →</button>
-      <button class="skip-btn" onclick="skipQuestion()">Skip</button>
+      <button class="btn-secondary" onclick="addSeparator()">Next Prompt</button>
+      <button class="btn-primary" onclick="finishCapture()">Done</button>
     </div>
   </div>
 
-  <!-- SUMMARY SCREEN -->
-  <div id="summary-screen" style="display:none">
-    <h1>🏡 Review</h1>
-    <p class="subtitle">Review your capture before saving</p>
-    <div id="summary-content"></div>
-    <button class="submit-btn" onclick="submitCapture()">💾 &nbsp;Save to Estate OS</button>
-    <div class="error-msg" id="error-msg" style="display:none"></div>
+  <!-- REVIEW SCREEN -->
+  <div id="review-screen" style="display:none">
+    <h1>Review Capture</h1>
+    <p class="mode-label">Edit anything before saving</p>
+    <div class="transcript-area" id="review-transcript" contenteditable="true"
+         style="max-height: 400px; min-height: 200px;"></div>
+    <button class="btn-save" onclick="submitCapture()">Save to Estate OS</button>
+    <button class="btn-secondary" onclick="backToCapture()" style="margin-top:10px; width:100%;">Back</button>
+    <div class="error-msg" id="error-msg"></div>
   </div>
 
   <!-- SAVED SCREEN -->
-  <div id="saved-screen" style="display:none">
-    <div class="saved-icon">✅</div>
-    <h1>🏡 Saved</h1>
+  <div id="saved-screen" class="saved-screen" style="display:none">
+    <div class="saved-icon">&#x2705;</div>
+    <h1>Saved</h1>
     <p class="saved-msg">Capture saved to your inbox</p>
-    <p class="saved-sub">Syncing to laptop via Google Drive.<br>Gate will process it at your next review session.</p>
-    <button class="new-btn" onclick="resetApp()">New Capture</button>
+    <p class="saved-sub">Syncing to laptop via Google Drive.<br>Pipeline will process it automatically.</p>
+    <button class="btn-new" onclick="resetApp()">New Capture</button>
   </div>
 
 </div>
 
 <script>
-// ── QUESTIONS ──────────────────────────────────────────────────────────────
-const QUESTIONS = [
-  "What's on your mind right now that you haven't captured yet?",
-  "What did you work on or commit to yesterday that needs follow-up?",
-  "Who needs something from you today?",
-  "Who do you need to reach out to — and what for?",
-  "How can they help you? How can you help them?",
-  "What are your top priorities today?",
-  "Anything happening with the house, cars, finances, legal, or family that needs tracking?",
-  "Any documents, bills, appointments, or deadlines coming up?",
-  "What else is floating in your head that belongs in the system?"
-];
+// ── CAPTURE MODES & QUESTIONS ─────────────────────────────────────────────
+var MODES = {
+  morning_sweep: {
+    label: 'Morning Sweep',
+    questions: [
+      'How are you feeling?',
+      "What's on your mind right now that you haven't written down?",
+      'What did you promise someone yesterday?',
+      "Who's waiting on something from you?",
+      "What's the one thing that would make today a win?",
+      'What are you avoiding?',
+      "What's worrying you that you haven't dealt with?",
+      "Anything coming up this week you haven't planned for?",
+      'What longer-term projects do you need to start on?'
+    ]
+  },
+  quick_note: {
+    label: 'Quick Note',
+    questions: [
+      'Who?',
+      'What?',
+      'Where?',
+      'When?',
+      'Why?'
+    ]
+  },
+  evening_sweep: {
+    label: 'Evening Sweep',
+    questions: [
+      'How are you feeling?',
+      'What did you actually do today?',
+      "What did you say you'd do that you didn't?",
+      'Who did you talk to and what did you commit to?',
+      "What came up today that isn't captured yet — a name, a number, a decision, a problem?",
+      "What's nagging at you that you need to put somewhere so you can sleep?"
+    ]
+  }
+};
 
-// ── STATE ──────────────────────────────────────────────────────────────────
-let currentQ  = 0;
-let answers   = new Array(QUESTIONS.length).fill('');
-let recognition = null;
-let isRecording = false;
-const synth   = window.speechSynthesis;
+// ── STATE ─────────────────────────────────────────────────────────────────
+var captureMode = '';
+var questions = [];
+var currentPrompt = 0;
+var fullTranscript = '';
+var recognition = null;
+var isRecording = false;
+var timerInterval = null;
+var recordSeconds = 0;
+var user = (typeof CAPTURE_USER !== 'undefined') ? CAPTURE_USER : 'MHH';
 
-// ── START ──────────────────────────────────────────────────────────────────
-function startCapture() {
-  document.getElementById('start-screen').style.display = 'none';
-  document.getElementById('question-screen').style.display = 'block';
-  showQuestion(0);
+// ── AUTO-DETECT MODE ──────────────────────────────────────────────────────
+function detectMode() {
+  var hour = new Date().getHours();
+  if (hour < 11) return 'morning_sweep';
+  if (hour < 17) return 'quick_note';
+  return 'evening_sweep';
 }
 
-// ── SHOW QUESTION ──────────────────────────────────────────────────────────
-function showQuestion(index) {
-  currentQ = index;
-  const total = QUESTIONS.length;
+// ── INIT ──────────────────────────────────────────────────────────────────
+function init() {
+  captureMode = detectMode();
+  var mode = MODES[captureMode];
+  questions = mode.questions;
+  var info = mode.label + ' \u00b7 ' + questions.length + ' prompts';
+  document.getElementById('start-info').textContent = info;
+}
 
-  document.getElementById('q-num').textContent    = 'Question ' + (index + 1) + ' of ' + total;
-  document.getElementById('q-text').textContent   = QUESTIONS[index];
-  document.getElementById('progress').style.width = Math.round((index / total) * 100) + '%';
-  document.getElementById('answer-box').textContent = answers[index] || '';
-  document.getElementById('answer-box').contentEditable = 'false';
-  document.getElementById('next-btn').style.display = 'none';
-  document.getElementById('mic-btn').classList.remove('recording');
-  document.getElementById('status').textContent = 'Reading question aloud…';
-  isRecording = false;
+// ── START CAPTURE ─────────────────────────────────────────────────────────
+function startCapture() {
+  document.getElementById('start-screen').style.display = 'none';
+  document.getElementById('capture-screen').style.display = 'block';
+  document.getElementById('mode-display').textContent = MODES[captureMode].label;
 
-  // Read question aloud, then auto-start recording
-  synth.cancel();
-  const utter = new SpeechSynthesisUtterance(QUESTIONS[index]);
-  utter.rate  = 0.88;
-  utter.pitch = 1;
-  utter.onend = function() { startRecording(); };
-  synth.speak(utter);
+  // Build prompts list
+  var list = document.getElementById('prompts-list');
+  list.innerHTML = '';
+  for (var i = 0; i < questions.length; i++) {
+    var li = document.createElement('li');
+    li.id = 'prompt-' + i;
+    li.innerHTML = '<span class="prompt-num">' + (i + 1) + '.</span> ' + questions[i];
+    if (i === 0) li.classList.add('active');
+    list.appendChild(li);
+  }
+
+  currentPrompt = 0;
+  fullTranscript = '';
+  updateProgress();
+}
+
+function updateProgress() {
+  var pct = Math.round(((currentPrompt) / questions.length) * 100);
+  document.getElementById('progress').style.width = pct + '%';
 }
 
 // ── RECORDING ─────────────────────────────────────────────────────────────
+function toggleRecording() {
+  if (isRecording) {
+    stopRecording();
+  } else {
+    startRecording();
+  }
+}
+
 function startRecording() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) {
-    // Fallback: editable text box
-    document.getElementById('status').textContent = 'Voice not supported — type your answer below';
-    document.getElementById('answer-box').contentEditable = 'true';
-    document.getElementById('answer-box').textContent = '';
-    document.getElementById('answer-box').focus();
-    document.getElementById('next-btn').style.display = 'block';
+    document.getElementById('record-status').textContent = 'Voice not supported \u2014 type in the box below';
+    document.getElementById('transcript-area').contentEditable = 'true';
+    document.getElementById('transcript-area').innerHTML = '';
+    document.getElementById('transcript-area').focus();
     return;
   }
 
   recognition = new SR();
-  recognition.continuous      = false;
-  recognition.interimResults  = true;
-  recognition.lang            = 'en-US';
-  recognition.maxAlternatives = 1;
+  recognition.continuous = true;
+  recognition.interimResults = true;
+  recognition.lang = 'en-US';
 
   recognition.onstart = function() {
     isRecording = true;
     document.getElementById('mic-btn').classList.add('recording');
-    document.getElementById('status').textContent = '🔴 Recording… tap mic to stop';
-    document.getElementById('answer-box').textContent = '…';
+    document.getElementById('record-status').textContent = 'Recording... tap mic to pause';
+    startTimer();
   };
 
   recognition.onresult = function(e) {
-    let transcript = '';
-    for (let i = 0; i < e.results.length; i++) {
-      transcript += e.results[i][0].transcript;
+    var interim = '';
+    for (var i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) {
+        fullTranscript += e.results[i][0].transcript + ' ';
+      } else {
+        interim += e.results[i][0].transcript;
+      }
     }
-    document.getElementById('answer-box').textContent = transcript;
-    if (e.results[e.results.length - 1].isFinal) {
-      answers[currentQ] = transcript;
-    }
-  };
-
-  recognition.onspeechend = function() {
-    recognition.stop();
+    updateTranscriptDisplay(fullTranscript + interim);
   };
 
   recognition.onend = function() {
     isRecording = false;
     document.getElementById('mic-btn').classList.remove('recording');
-    if (answers[currentQ]) {
-      document.getElementById('status').textContent = '✓ Got it — tap Next or re-record';
-      document.getElementById('next-btn').style.display = 'block';
+    stopTimer();
+    if (fullTranscript.trim()) {
+      document.getElementById('record-status').textContent = 'Paused \u2014 tap mic to continue or tap Done';
     } else {
-      document.getElementById('status').textContent = 'Nothing captured — tap mic to try again';
+      document.getElementById('record-status').textContent = 'Tap mic to start recording';
     }
   };
 
   recognition.onerror = function(e) {
     isRecording = false;
     document.getElementById('mic-btn').classList.remove('recording');
-    document.getElementById('status').textContent = 'Error: ' + e.error + ' — tap mic to retry';
+    stopTimer();
+    if (e.error === 'no-speech') {
+      document.getElementById('record-status').textContent = 'No speech detected \u2014 tap mic to try again';
+    } else {
+      document.getElementById('record-status').textContent = 'Error: ' + e.error + ' \u2014 tap mic to retry';
+    }
   };
 
   recognition.start();
 }
 
-function toggleRecording() {
-  synth.cancel();
-  if (isRecording) {
-    recognition.stop();
+function stopRecording() {
+  if (recognition) {
+    try { recognition.stop(); } catch(e) {}
+  }
+}
+
+function updateTranscriptDisplay(text) {
+  var area = document.getElementById('transcript-area');
+  if (text.trim()) {
+    area.innerHTML = text;
   } else {
-    startRecording();
+    area.innerHTML = '<span class="transcript-placeholder">Your transcript will appear here as you speak...</span>';
+  }
+  area.scrollTop = area.scrollHeight;
+}
+
+// ── TIMER ─────────────────────────────────────────────────────────────────
+function startTimer() {
+  timerInterval = setInterval(function() {
+    recordSeconds++;
+    var m = Math.floor(recordSeconds / 60);
+    var s = recordSeconds % 60;
+    document.getElementById('record-timer').textContent =
+      String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
   }
 }
 
-// ── NAVIGATION ─────────────────────────────────────────────────────────────
-function nextQuestion() {
-  // Capture any manually typed answer
-  const box = document.getElementById('answer-box');
-  if (box.contentEditable === 'true') {
-    answers[currentQ] = box.textContent.trim();
-  }
-  if (recognition) { try { recognition.stop(); } catch(e){} }
-  synth.cancel();
+// ── NAVIGATION ────────────────────────────────────────────────────────────
+function addSeparator() {
+  // Add a visual separator in transcript and advance prompt highlight
+  if (currentPrompt < questions.length - 1) {
+    fullTranscript += '\n\n';
+    document.getElementById('prompt-' + currentPrompt).classList.remove('active');
+    document.getElementById('prompt-' + currentPrompt).classList.add('done');
+    currentPrompt++;
+    document.getElementById('prompt-' + currentPrompt).classList.add('active');
+    updateProgress();
 
-  if (currentQ < QUESTIONS.length - 1) {
-    showQuestion(currentQ + 1);
-  } else {
-    showSummary();
+    // Scroll the active prompt into view
+    document.getElementById('prompt-' + currentPrompt).scrollIntoView({behavior: 'smooth', block: 'nearest'});
   }
+  updateTranscriptDisplay(fullTranscript);
 }
 
-function skipQuestion() {
-  if (recognition) { try { recognition.stop(); } catch(e){} }
-  synth.cancel();
-  answers[currentQ] = '';
-  if (currentQ < QUESTIONS.length - 1) {
-    showQuestion(currentQ + 1);
-  } else {
-    showSummary();
+function finishCapture() {
+  // Stop recording if active
+  stopRecording();
+  stopTimer();
+
+  // Also grab manually typed content if voice wasn't used
+  var area = document.getElementById('transcript-area');
+  if (area.contentEditable === 'true' && area.textContent.trim()) {
+    fullTranscript = area.textContent.trim();
   }
+
+  if (!fullTranscript.trim()) {
+    document.getElementById('record-status').textContent = 'Nothing recorded yet \u2014 speak or type first';
+    return;
+  }
+
+  // Show review screen
+  document.getElementById('capture-screen').style.display = 'none';
+  document.getElementById('review-screen').style.display = 'block';
+  document.getElementById('review-transcript').textContent = fullTranscript.trim();
 }
 
-// ── SUMMARY ────────────────────────────────────────────────────────────────
-function showSummary() {
-  document.getElementById('question-screen').style.display = 'none';
-  document.getElementById('summary-screen').style.display  = 'block';
-
-  let html = '';
-  QUESTIONS.forEach(function(q, i) {
-    if (answers[i]) {
-      html += '<div class="summary-item">'
-            + '<div class="summary-q">' + q + '</div>'
-            + '<div class="summary-a">' + answers[i] + '</div>'
-            + '</div>';
-    }
-  });
-  if (!html) {
-    html = '<p style="color:#888">No answers captured. Go back and try again.</p>';
-  }
-  document.getElementById('summary-content').innerHTML = html;
+function backToCapture() {
+  document.getElementById('review-screen').style.display = 'none';
+  document.getElementById('capture-screen').style.display = 'block';
 }
 
-// ── BUILD MARKDOWN ─────────────────────────────────────────────────────────
+// ── BUILD MARKDOWN ────────────────────────────────────────────────────────
 function buildMarkdown() {
-  const now     = new Date();
-  const dateStr = now.toISOString().split('T')[0];
-  const hh      = String(now.getHours()).padStart(2,'0');
-  const mm      = String(now.getMinutes()).padStart(2,'0');
-  const timeStr = hh + ':' + mm;
-  const filename = 'capture-' + dateStr + '-' + hh + mm + '-MHH.md';
+  var now = new Date();
+  var dateStr = now.toISOString().split('T')[0];
+  var hh = String(now.getHours()).padStart(2, '0');
+  var mm = String(now.getMinutes()).padStart(2, '0');
+  var timeStr = hh + ':' + mm;
+  var filename = 'capture-' + dateStr + '-' + hh + mm + '-' + user + '.md';
 
-  let md = '---\n'
-         + 'source: voice-capture\n'
-         + 'captured_date: ' + dateStr + '\n'
-         + 'capture_time: ' + timeStr + '\n'
-         + 'visibility: MHH\n'
-         + 'classification: general\n'
-         + 'capture_type: daily-brain-dump\n'
-         + '---\n\n'
-         + '## Daily Capture — ' + dateStr + ' ' + timeStr + '\n\n';
+  // Get the (possibly edited) transcript from review screen
+  var transcript = document.getElementById('review-transcript').textContent.trim();
 
-  QUESTIONS.forEach(function(q, i) {
-    if (answers[i]) {
-      md += '### ' + q + '\n' + answers[i] + '\n\n';
-    }
-  });
+  var md = '---\n'
+    + 'source: voice-capture\n'
+    + 'captured_date: ' + dateStr + '\n'
+    + 'capture_time: ' + timeStr + '\n'
+    + 'capture_mode: ' + captureMode + '\n'
+    + 'captured_by: ' + user + '\n'
+    + '---\n\n'
+    + '## ' + MODES[captureMode].label + ' \u2014 ' + dateStr + ' ' + timeStr + '\n\n'
+    + transcript + '\n';
 
   return { content: md, filename: filename };
 }
 
-// ── SUBMIT ─────────────────────────────────────────────────────────────────
+// ── SUBMIT ────────────────────────────────────────────────────────────────
 function submitCapture() {
-  const { content, filename } = buildMarkdown();
-  document.getElementById('error-msg').style.display = 'none';
-  document.querySelector('.submit-btn').textContent  = 'Saving…';
-  document.querySelector('.submit-btn').disabled     = true;
+  var data = buildMarkdown();
+  var errEl = document.getElementById('error-msg');
+  errEl.style.display = 'none';
+
+  var saveBtn = document.querySelector('.btn-save');
+  saveBtn.textContent = 'Saving...';
+  saveBtn.disabled = true;
 
   google.script.run
     .withSuccessHandler(function() {
-      document.getElementById('summary-screen').style.display = 'none';
-      document.getElementById('saved-screen').style.display   = 'block';
+      document.getElementById('review-screen').style.display = 'none';
+      document.getElementById('saved-screen').style.display = 'block';
     })
     .withFailureHandler(function(err) {
-      document.querySelector('.submit-btn').textContent = '💾  Save to Estate OS';
-      document.querySelector('.submit-btn').disabled   = false;
-      document.getElementById('error-msg').style.display = 'block';
-      document.getElementById('error-msg').textContent   = 'Save failed: ' + err.message + '. Check that MHH-Inbox exists in your Google Drive.';
+      saveBtn.textContent = 'Save to Estate OS';
+      saveBtn.disabled = false;
+      errEl.style.display = 'block';
+      errEl.textContent = 'Save failed: ' + err.message;
     })
-    .saveCapture(content, filename);
+    .saveCapture(data.content, data.filename, user);
 }
 
-// ── RESET ──────────────────────────────────────────────────────────────────
+// ── RESET ─────────────────────────────────────────────────────────────────
 function resetApp() {
-  answers  = new Array(QUESTIONS.length).fill('');
-  currentQ = 0;
-  document.getElementById('saved-screen').style.display   = 'none';
-  document.getElementById('start-screen').style.display   = 'block';
+  fullTranscript = '';
+  currentPrompt = 0;
+  recordSeconds = 0;
+  document.getElementById('record-timer').textContent = '';
+  document.getElementById('saved-screen').style.display = 'none';
+  document.getElementById('start-screen').style.display = 'block';
+  init();
 }
+
+// ── BOOT ──────────────────────────────────────────────────────────────────
+init();
 </script>
 </body>
 </html>

@@ -1,17 +1,23 @@
 # Estate Capture App — Deploy Instructions
 
 One-time setup. Takes about 10 minutes.
-After setup: one tap on your phone opens a voice-guided capture form.
+After setup: one tap on your phone opens a voice capture form.
 
 ---
 
 ## What This Does
 
 You tap a button on your phone home screen.
-A form opens. It reads each question aloud.
-You speak your answers.
-When done, it saves a formatted note directly to your Google Drive MHH-Inbox.
-Your laptop picks it up and moves it to Obsidian Inbox for gate review.
+A form opens with text prompts based on time of day:
+- **Morning Sweep** (before 11am) — 9 prompts, includes health check-in
+- **Quick Note** (11am-5pm) — 5 rapid-fire prompts (who/what/where/when/why)
+- **Evening Sweep** (after 5pm) — 6 prompts, includes health check-in
+
+You tap the mic button and speak freely while reading the prompts.
+Recording is continuous — one long recording, not per-question.
+When done, review and edit the transcript, then save.
+The .md file goes to your Google Drive inbox folder.
+The capture pipeline processes it automatically.
 
 ---
 
@@ -20,7 +26,7 @@ Your laptop picks it up and moves it to Obsidian Inbox for gate review.
 On your laptop, go to:
   https://script.google.com
 
-Sign in with your ESTATE Google account (not personal).
+Sign in with your ESTATE Google account (mhh.rosevale.west@gmail.com).
 Click "New Project" in the top left.
 
 ---
@@ -56,43 +62,36 @@ Copy the entire contents and paste into Index.html in Apps Script.
 
 ---
 
-## Step 5 — Save the Project
+## Step 5 — Save and Deploy
 
 Press Ctrl+S to save.
-
----
-
-## Step 6 — Deploy as Web App
 
 Click the blue "Deploy" button in the top right.
 Choose "New deployment".
 
 In the dialog:
-  - Type: Web app (should already be selected)
-  - Description: Estate Capture v1
+  - Type: Web app
+  - Description: Estate Capture v2
   - Execute as: Me (your estate Google account)
   - Who has access: Only myself
 
 Click "Deploy".
 
 Google will ask you to authorize the app.
-Click "Authorize access".
-Choose your estate Google account.
-Click "Allow".
+Click "Authorize access" > Choose your estate account > Click "Allow".
 
 ---
 
-## Step 7 — Copy Your App URL
+## Step 6 — Copy Your App URL
 
-After deploying, Google shows you a Web app URL.
-It looks like:
+After deploying, Google shows you a Web app URL like:
   https://script.google.com/macros/s/LONG_ID_HERE/exec
 
 Copy this URL. This is your capture button.
 
 ---
 
-## Step 8 — Add to Your Android Home Screen
+## Step 7 — Add to Your Android Home Screen
 
 On your Android phone, open Chrome.
 Go to the URL you just copied.
@@ -101,36 +100,29 @@ Choose "Add to Home screen".
 Name it: Estate Capture
 Tap Add.
 
-A button now appears on your home screen.
-Tap it once to test.
-
 ---
 
 ## What Happens When You Tap
 
 1. App opens in Chrome
-2. Tap the red Start button
-3. App reads question 1 aloud and starts recording
-4. Speak your answer
-5. App auto-advances to question 2
-6. Continue through all 9 questions (skip any you want)
-7. Review screen shows all your answers
-8. Tap Save — file goes directly to MHH-Inbox in Google Drive
-9. Your laptop pickup script moves it to Obsidian Inbox
+2. Auto-detects capture mode based on time of day
+3. Shows the prompts as a text list on screen (not read aloud)
+4. Tap the red mic button to start recording
+5. Speak freely — recording is continuous
+6. Tap "Next Prompt" to move through the list as you go
+7. Tap "Done" when finished
+8. Review screen lets you edit the transcript
+9. Tap "Save" — file goes to MHH-Inbox in Google Drive
+10. Capture pipeline processes it into the sheet + flat logs
 
 ---
 
-## The 9 Questions
+## For HBS (Phase 2)
 
-1. What's on your mind right now that you haven't captured yet?
-2. What did you work on or commit to yesterday that needs follow-up?
-3. Who needs something from you today?
-4. Who do you need to reach out to — and what for?
-5. How can they help you? How can you help them?
-6. What are your top priorities today?
-7. Anything happening with the house, cars, finances, legal, or family?
-8. Any documents, bills, appointments, or deadlines coming up?
-9. What else is floating in your head that belongs in the system?
+When HBS is added, she uses the same app with a URL parameter:
+  https://script.google.com/macros/s/LONG_ID_HERE/exec?user=HBS
+
+This saves to HBS-Inbox instead of MHH-Inbox.
 
 ---
 
@@ -138,20 +130,20 @@ Tap it once to test.
 
 Chrome on Android supports voice capture.
 If it asks for microphone permission, tap Allow.
-If voice still does not work, a text box appears so you can type instead.
+If voice still does not work, the transcript box becomes editable
+so you can type instead.
 
 ---
 
 ## Troubleshooting
 
 Save failed error:
-  Make sure MHH-Inbox folder exists in your estate Google Drive.
-  The app will create it automatically if missing.
+  The app auto-creates the inbox folder if missing.
+  If it still fails, check that Google Drive has space.
 
 App asks to re-authorize:
   This happens if you redeploy. Just click Allow again.
 
 URL stopped working:
-  You may need to redeploy. Go to script.google.com,
-  open Estate Capture, click Deploy, choose Manage deployments,
-  and check the status.
+  Go to script.google.com, open Estate Capture,
+  click Deploy > Manage deployments, and check status.
