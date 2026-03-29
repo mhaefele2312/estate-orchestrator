@@ -22,6 +22,7 @@ TESTS = [
     ("Capture Pipeline (imports)", ROOT / "behaviors" / "capture-pipeline"   / "capture_pipeline.py",   "--test"),
     ("Snapshot (imports)",         ROOT / "behaviors" / "snapshot"           / "snapshot.py",           "--test"),
     ("Weekly Sync (imports)",      ROOT / "behaviors" / "weekly-sync"        / "weekly_sync.py",        "--test"),
+    ("Reconciliation (imports)",   ROOT / "behaviors" / "reconciliation"     / "reconciliation.py",     "--test"),
     ("Gate",         ROOT / "behaviors" / "gate"          / "gate.py",         "--test"),
     ("Publish",      ROOT / "behaviors" / "publish"       / "publish.py",      "--test"),
     ("Health Check", ROOT / "behaviors" / "health-check"  / "health_check.py", "--test"),
