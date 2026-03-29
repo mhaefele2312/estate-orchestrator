@@ -181,19 +181,19 @@ def call_gemini(transcript: str, today_str: str) -> list[dict]:
         print("  Or add it to your system environment variables.")
         sys.exit(1)
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        import google.generativeai as genai
+    from google import genai
 
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-2.0-flash")
+    client = genai.Client(api_key=api_key)
 
     prompt = GEMINI_PROMPT_TEMPLATE.format(
         today=today_str,
         transcript=transcript.strip(),
     )
 
-    response = model.generate_content(prompt)
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+    )
     raw = response.text.strip()
 
     # Strip markdown code fences if Gemini wraps the JSON
@@ -419,9 +419,7 @@ def run_import_test() -> bool:
         from google.oauth2.credentials import Credentials  # noqa: F401
         from google_auth_oauthlib.flow import InstalledAppFlow  # noqa: F401
         from google.auth.transport.requests import Request  # noqa: F401
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            import google.generativeai as genai  # noqa: F401
+        from google import genai  # noqa: F401
     except ImportError as e:
         print(f"  FAIL: Missing dependency: {e}")
         print("  Install: pip install -r requirements.txt")
