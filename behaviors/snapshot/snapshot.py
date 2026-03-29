@@ -4,9 +4,9 @@ Estate OS — Source-of-Truth Snapshot (Phase 1, Item 4)
 Exports all worksheets from the MHH-Ops-Ledger Google Sheet as timestamped
 CSV files, then copies them to three locations:
 
-  1. G:\My Drive\Estate Ops\Source-of-Truth\   (primary SOT folder)
-  2. E:\12_Operations\Source-of-Truth\          (Gold vault — encrypted)
-  3. Obsidian Vault\Ops-Ledger\Source-of-Truth\ (offline backup)
+  1. Google Drive Estate Ops Source-of-Truth folder (primary)
+  2. Gold vault 12_Operations Source-of-Truth (encrypted)
+  3. Obsidian Vault Ops-Ledger Source-of-Truth (offline backup)
 
 Also writes a "sot-latest-MHH.csv" pointer file (a copy of the most recent
 timestamped snapshot of the Raw Log tab).
@@ -70,7 +70,7 @@ def _resolve_path(base: Path, p: str) -> Path:
 
 # ── Google Sheets auth (same pattern as verify_sheets_auth.py) ──────────────
 
-SCOPES = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 
 def _get_credentials(credentials_path: Path, token_path: Path):
