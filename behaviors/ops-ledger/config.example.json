@@ -4,5 +4,8 @@
   "credentials_path": "credentials.json",
   "token_path": "token.json",
   "logs_dir": "G:\\My Drive\\Estate Ops\\Logs",
-  "capture_archive_dir": "G:\\My Drive\\Capture-Archive"
+  "capture_archive_dir": "G:\\My Drive\\Capture-Archive",
+  "sot_dir": "G:\\My Drive\\Estate Ops\\Source-of-Truth",
+  "gold_sot_dir": "E:\\12_Operations\\Source-of-Truth",
+  "obsidian_sot_dir": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Ops-Ledger\\Source-of-Truth"
 }
