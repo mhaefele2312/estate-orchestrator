@@ -153,10 +153,13 @@ def ask_provenance(filepath, config):
     # Visibility
     print()
     print("  Visibility — who can see this?")
-    print("  1 = MHH (Marty only)  2 = Family  3 = MHH_only (fully restricted)")
+    print("  1 = Family   (visible to all family members)")
+    print("  2 = MHH      (visible to Marty only)")
+    print("  3 = MHH_only (fully restricted, sensitive)")
     vis_choice = input("  choice [1/2/3, default=1] > ").strip()
-    vis_map = {"1": "MHH", "2": "Family", "3": "MHH_only", "": "MHH"}
-    provenance["visibility"] = vis_map.get(vis_choice, "MHH")
+    vis_map = {"1": "Family", "2": "MHH", "3": "MHH_only", "": "Family"}
+    provenance["visibility"] = vis_map.get(vis_choice, "Family")
+    print(f"  → visibility: {provenance['visibility']}")
 
     # Classification
     print()
@@ -168,6 +171,7 @@ def ask_provenance(filepath, config):
         "4": "legal", "5": "medical", "6": "general", "": "general"
     }
     provenance["classification"] = cls_map.get(cls_choice, "general")
+    print(f"  → classification: {provenance['classification']}")
 
     return provenance, fm, body
 
