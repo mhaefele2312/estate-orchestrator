@@ -1,0 +1,6 @@
+{
+  "_readme": "Copy this file to config.json in this folder. Never commit config.json, credentials.json, or token.json.",
+  "spreadsheet_id": "YOUR_GOOGLE_SHEET_ID",
+  "credentials_path": "credentials.json",
+  "token_path": "token.json"
+}

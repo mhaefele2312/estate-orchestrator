@@ -1,0 +1,5 @@
+# Estate OS — Phase 1 Python dependencies (see CLAUDE.md)
+gspread>=6.0.0
+google-auth>=2.0.0
+google-auth-oauthlib>=1.2.0
+google-generativeai>=0.8.0

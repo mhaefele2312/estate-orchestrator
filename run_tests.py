@@ -1,7 +1,7 @@
 """
 Estate OS — Run All Tests
 ==========================
-Runs all four behavior scripts in test mode.
+Runs behavior scripts in test mode (and the Ops Ledger import check).
 Use this any time you want to verify the system is healthy.
 Nothing in your real vault is touched.
 
@@ -18,6 +18,7 @@ from pathlib import Path
 ROOT = Path(__file__).parent
 
 TESTS = [
+    ("Ops Ledger (imports)", ROOT / "behaviors" / "ops-ledger" / "verify_sheets_auth.py", "--test"),
     ("Gate",         ROOT / "behaviors" / "gate"          / "gate.py",         "--test"),
     ("Publish",      ROOT / "behaviors" / "publish"       / "publish.py",      "--test"),
     ("Health Check", ROOT / "behaviors" / "health-check"  / "health_check.py", "--test"),

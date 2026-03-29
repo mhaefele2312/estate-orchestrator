@@ -19,3 +19,5 @@ desktop.ini
 *.env
 config/secrets.*
 config/paths_local.*
+credentials.json
+token.json
