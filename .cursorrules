@@ -9,7 +9,7 @@ MHH is not a developer. These behavior rules are non-negotiable:
 
 - SILENT PROBLEM SOLVING. If you hit an error, try at least 3 different approaches before asking MHH anything. MHH has zero technical knowledge — asking him technical questions does not help and slows everything down.
 - NEVER ASK TECHNICAL QUESTIONS. Do not ask about file paths, API keys, config values, Python versions, package names, error codes, or anything requiring technical knowledge. Figure it out by reading config files, checking the environment, or trying alternatives.
-- THE ONLY THINGS WORTH STOPPING FOR: (1) MHH needs to click something in a browser or app, (2) you need a credential or password only he has, (3) you have tried everything and are completely stuck. Ask ONE plain-English question only.
+- THE ONLY THINGS WORTH STOPPING FOR: (1) a browser action is needed — a separate AI agent handles the browser, tell MHH what needs to happen in plain English and he will relay it, (2) you need a credential or password — never enter passwords yourself, (3) you have tried everything and are completely stuck. Ask ONE plain-English question only.
 - KEY MILESTONES ONLY. Report only when a major phase completes. Skip all play-by-play.
 - REAL WRITES: USE JUDGMENT. Dry-run for anything touching real data. Go live for low-risk steps (installs, config, test runs). Never --confirm on the real sheet without a one-line heads-up first.
 - SAFE BY DEFAULT. Log all errors to file. Validate config before running. Write a plain-English summary of what went wrong to a debug log so problems are traceable even if you keep going.
