@@ -322,6 +322,7 @@ var currentPrompt = 0;
 var fullTranscript = '';
 var recognition = null;
 var isRecording = false;
+var wantsRecording = false;
 var timerInterval = null;
 var recordSeconds = 0;
 
@@ -397,15 +398,22 @@ function startRecording() {
     return;
   }
 
+  // Flag: true = user wants recording active (auto-restart on silence)
+  // Set false only when user explicitly taps mic to stop
+  wantsRecording = true;
+
   recognition = new SR();
   recognition.continuous = true;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
 
+  // Track which results we've already committed to avoid duplicates
+  var committedCount = 0;
+
   recognition.onstart = function() {
     isRecording = true;
     document.getElementById('mic-btn').classList.add('recording');
-    document.getElementById('record-status').textContent = 'Recording... tap mic to pause';
+    document.getElementById('record-status').textContent = 'Recording... tap mic to stop';
     startTimer();
   };
 
@@ -413,7 +421,11 @@ function startRecording() {
     var interim = '';
     for (var i = e.resultIndex; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        fullTranscript += e.results[i][0].transcript + ' ';
+        // Only append if we haven't already committed this result
+        if (i >= committedCount) {
+          fullTranscript += e.results[i][0].transcript + ' ';
+          committedCount = i + 1;
+        }
       } else {
         interim += e.results[i][0].transcript;
       }
@@ -423,32 +435,60 @@ function startRecording() {
 
   recognition.onend = function() {
     isRecording = false;
+    // Auto-restart if user hasn't explicitly stopped
+    if (wantsRecording) {
+      try {
+        // Small delay to avoid rapid restart loops
+        setTimeout(function() {
+          if (wantsRecording) {
+            // Reset committed count for new session
+            committedCount = 0;
+            recognition.start();
+          }
+        }, 300);
+      } catch(e) {}
+      return;
+    }
     document.getElementById('mic-btn').classList.remove('recording');
     stopTimer();
     if (fullTranscript.trim()) {
-      document.getElementById('record-status').textContent = 'Paused \u2014 tap mic to continue or tap Done';
+      document.getElementById('record-status').textContent = 'Stopped \u2014 tap mic to continue or tap Done';
     } else {
       document.getElementById('record-status').textContent = 'Tap mic to start recording';
     }
   };
 
   recognition.onerror = function(e) {
+    if (e.error === 'no-speech') {
+      // Don't stop — just let onend auto-restart
+      return;
+    }
+    if (e.error === 'aborted') {
+      // Normal when we restart — ignore
+      return;
+    }
     isRecording = false;
+    wantsRecording = false;
     document.getElementById('mic-btn').classList.remove('recording');
     stopTimer();
-    if (e.error === 'no-speech') {
-      document.getElementById('record-status').textContent = 'No speech detected \u2014 tap mic to try again';
-    } else {
-      document.getElementById('record-status').textContent = 'Error: ' + e.error + ' \u2014 tap mic to retry';
-    }
+    document.getElementById('record-status').textContent = 'Error: ' + e.error + ' \u2014 tap mic to retry';
   };
 
   recognition.start();
 }
 
 function stopRecording() {
+  wantsRecording = false;
   if (recognition) {
     try { recognition.stop(); } catch(e) {}
+  }
+  isRecording = false;
+  document.getElementById('mic-btn').classList.remove('recording');
+  stopTimer();
+  if (fullTranscript.trim()) {
+    document.getElementById('record-status').textContent = 'Stopped \u2014 tap mic to continue or tap Done';
+  } else {
+    document.getElementById('record-status').textContent = 'Tap mic to start recording';
   }
 }
 
