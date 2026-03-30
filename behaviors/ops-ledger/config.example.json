@@ -9,6 +9,8 @@
   "spreadsheet_id_hbs": "",
   "capture_archive_dir": "G:\\My Drive\\Capture-Archive",
   "sot_dir": "G:\\My Drive\\Estate Ops\\Source-of-Truth",
+  "gold_vault_dir": "E:\\",
+  "staging_dir": "G:\\My Drive\\Staging-Intake",
   "gold_sot_dir": "E:\\12_Operations\\Source-of-Truth",
   "obsidian_sot_dir": "C:\\Users\\mhhro\\Documents\\Obsidian Vault\\Ops-Ledger\\Source-of-Truth",
   "obsidian_vault_dir": "C:\\Users\\mhhro\\Documents\\Obsidian Vault"

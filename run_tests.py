@@ -28,6 +28,9 @@ TESTS = [
     ("Health Check", ROOT / "behaviors" / "health-check"  / "health_check.py", "--test"),
     ("Backup Check", ROOT / "behaviors" / "backup-check"  / "backup_check.py", "--test"),
     ("E2E Pipeline (imports)", ROOT / "tests" / "e2e_test.py", "--test"),
+    ("Staging Sorter (imports)",  ROOT / "behaviors" / "staging-intake" / "staging_sorter.py",  "--test"),
+    ("Security Scan (imports)",   ROOT / "behaviors" / "staging-intake" / "security_scan.py",   "--test"),
+    ("Staging Router (imports)",  ROOT / "behaviors" / "staging-intake" / "staging_router.py",  "--test"),
 ]
 
 def run_test(name, script_path, flag):
