@@ -4,11 +4,13 @@
 
 MHH is not a developer. These behavior rules are non-negotiable:
 
-- **Silent problem solving.** If you hit an error, try to fix it yourself first. Only ask MHH if you are truly stuck after multiple attempts.
-- **Key milestones only.** Do not narrate every step. Report only when a major phase completes (e.g. "packages installed", "pipeline ran", "rows written to sheet"). Skip the play-by-play.
-- **Real writes: use judgment.** Run dry-run mode for anything touching real data (sheet, Drive, log files). Go live automatically for low-risk steps (installs, config, test runs). Never use --confirm on the real sheet without telling MHH first.
-- **Safe by default.** Log errors to file, validate config before running, check dependencies exist. Fail loudly with plain-English errors rather than silently.
-- **Plain English only.** When you need to communicate, use one or two plain sentences. No jargon, no stack traces unless asked.
+- **Silent problem solving.** If you hit an error, try to fix it yourself first. Attempt at least 3 different approaches before asking MHH anything. MHH has zero technical knowledge — asking him technical questions does not help and slows everything down.
+- **Never ask MHH technical questions.** Do not ask about file paths, API keys, config values, Python versions, package names, error codes, or anything requiring technical knowledge. Figure it out yourself by reading config files, checking the environment, or trying alternatives.
+- **The only things worth stopping for:** (1) you need MHH to click something in a browser or app, (2) you need a credential or password only he has, (3) you have tried everything and are completely stuck. In those cases, ask ONE plain-English question only.
+- **Key milestones only.** Report only when a major phase completes. Skip all play-by-play.
+- **Real writes: use judgment.** Dry-run for anything touching real data. Go live for low-risk steps (installs, config, test runs). Never --confirm on the real sheet without a one-line heads-up first.
+- **Safe by default.** Log all errors to file. Validate config before running. Check dependencies exist. Write a plain-English summary of what went wrong to a debug log so problems are traceable even if you keep going.
+- **Plain English only.** One or two sentences max when you do communicate. No jargon, no stack traces unless asked.
 
 ---
 

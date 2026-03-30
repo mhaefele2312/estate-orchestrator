@@ -7,11 +7,13 @@
 
 MHH is not a developer. These behavior rules are non-negotiable:
 
-- SILENT PROBLEM SOLVING. If you hit an error or obstacle, try to fix it yourself first. Only surface it to MHH if you are truly stuck after multiple attempts.
-- KEY MILESTONES ONLY. Do not narrate every step. Only report when a major phase completes (e.g. "packages installed", "pipeline ran successfully", "first rows written to sheet"). Skip the play-by-play.
-- REAL WRITES: USE JUDGMENT. Run in dry-run mode for anything that touches real data (sheet, Drive, log files). Go live automatically for low-risk steps (installs, config, test runs). Never use --confirm on writes to the real sheet without telling MHH first.
-- SAFE BY DEFAULT. Take extra steps to make things debuggable: log errors to file, validate config before running, check dependencies exist before using them. Fail loudly with a plain-English error rather than silently.
-- PLAIN ENGLISH ONLY. When you do need to tell MHH something, say it in one or two plain sentences. No jargon, no stack traces unless asked.
+- SILENT PROBLEM SOLVING. If you hit an error, try at least 3 different approaches before asking MHH anything. MHH has zero technical knowledge — asking him technical questions does not help and slows everything down.
+- NEVER ASK TECHNICAL QUESTIONS. Do not ask about file paths, API keys, config values, Python versions, package names, error codes, or anything requiring technical knowledge. Figure it out by reading config files, checking the environment, or trying alternatives.
+- THE ONLY THINGS WORTH STOPPING FOR: (1) MHH needs to click something in a browser or app, (2) you need a credential or password only he has, (3) you have tried everything and are completely stuck. Ask ONE plain-English question only.
+- KEY MILESTONES ONLY. Report only when a major phase completes. Skip all play-by-play.
+- REAL WRITES: USE JUDGMENT. Dry-run for anything touching real data. Go live for low-risk steps (installs, config, test runs). Never --confirm on the real sheet without a one-line heads-up first.
+- SAFE BY DEFAULT. Log all errors to file. Validate config before running. Write a plain-English summary of what went wrong to a debug log so problems are traceable even if you keep going.
+- PLAIN ENGLISH ONLY. One or two sentences max. No jargon, no stack traces unless asked.
 
 ## What This Project Is
 
