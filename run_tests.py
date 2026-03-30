@@ -27,6 +27,7 @@ TESTS = [
     ("Publish",      ROOT / "behaviors" / "publish"       / "publish.py",      "--test"),
     ("Health Check", ROOT / "behaviors" / "health-check"  / "health_check.py", "--test"),
     ("Backup Check", ROOT / "behaviors" / "backup-check"  / "backup_check.py", "--test"),
+    ("E2E Pipeline (imports)", ROOT / "tests" / "e2e_test.py", "--test"),
 ]
 
 def run_test(name, script_path, flag):

@@ -73,7 +73,10 @@ In the dialog:
   - Type: Web app
   - Description: Estate Capture v2
   - Execute as: Me (your estate Google account)
-  - Who has access: Only myself
+  - Who has access: Anyone
+    (This lets you open the app from any Google account on your phone.
+     The URL is long and unguessable, so this is safe.
+     The app still EXECUTES as the estate account — saves go to estate Drive.)
 
 Click "Deploy".
 
@@ -88,6 +91,9 @@ After deploying, Google shows you a Web app URL like:
   https://script.google.com/macros/s/LONG_ID_HERE/exec
 
 Copy this URL. This is your capture button.
+
+LIVE URL (already deployed):
+  https://script.google.com/macros/s/AKfycbwBPjHdP1fhPrW5fGaklbQLgJy2Tq3i_j20_jWyyO17oDQvzX8NYaK05VZF8fpD9DJLvQ/exec
 
 ---
 
@@ -120,7 +126,7 @@ Tap Add.
 ## For HBS (Phase 2)
 
 When HBS is added, she uses the same app with a URL parameter:
-  https://script.google.com/macros/s/LONG_ID_HERE/exec?user=HBS
+  https://script.google.com/macros/s/AKfycbwBPjHdP1fhPrW5fGaklbQLgJy2Tq3i_j20_jWyyO17oDQvzX8NYaK05VZF8fpD9DJLvQ/exec?user=HBS
 
 This saves to HBS-Inbox instead of MHH-Inbox.
 
