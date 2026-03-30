@@ -557,9 +557,13 @@ function finishCapture() {
     return;
   }
 
-  document.getElementById('capture-screen').style.display = 'none';
-  document.getElementById('review-screen').style.display = 'block';
-  document.getElementById('review-transcript').textContent = fullTranscript.trim();
+  // Delay the screen swap so the "Done" tap doesn't cascade onto the
+  // "Save" button that appears in the same spot on mobile.
+  setTimeout(function() {
+    document.getElementById('capture-screen').style.display = 'none';
+    document.getElementById('review-screen').style.display = 'block';
+    document.getElementById('review-transcript').textContent = fullTranscript.trim();
+  }, 300);
 }
 
 function backToCapture() {
@@ -601,6 +605,18 @@ function submitCapture() {
   saveBtn.textContent = 'Saving...';
   saveBtn.disabled = true;
 
+  var done = false;
+  function showSaved() {
+    if (done) return;
+    done = true;
+    document.getElementById('review-screen').style.display = 'none';
+    document.getElementById('saved-screen').style.display = 'block';
+  }
+
+  // Fallback: with no-cors we can't confirm the response, so if the
+  // fetch promise hasn't resolved after 4 seconds, assume it saved.
+  var fallbackTimer = setTimeout(showSaved, 4000);
+
   fetch(APPS_SCRIPT_URL, {
     method: 'POST',
     mode: 'no-cors',
@@ -612,12 +628,12 @@ function submitCapture() {
     })
   })
   .then(function() {
-    // With no-cors mode we get an opaque response, so we assume success
-    // if the fetch didn't throw an error
-    document.getElementById('review-screen').style.display = 'none';
-    document.getElementById('saved-screen').style.display = 'block';
+    clearTimeout(fallbackTimer);
+    showSaved();
   })
   .catch(function(err) {
+    clearTimeout(fallbackTimer);
+    if (done) return;
     saveBtn.textContent = 'Save to Estate OS';
     saveBtn.disabled = false;
     errEl.style.display = 'block';
