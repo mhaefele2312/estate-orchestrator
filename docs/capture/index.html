@@ -398,17 +398,24 @@ function startRecording() {
     return;
   }
 
-  // Flag: true = user wants recording active (auto-restart on silence)
-  // Set false only when user explicitly taps mic to stop
   wantsRecording = true;
+  launchRecognitionSession();
+}
 
+// Each session captures ONE utterance (speech until a natural pause).
+// We take its final text, append to fullTranscript, and restart immediately.
+// This avoids all duplication because each session produces exactly one final.
+function launchRecognitionSession() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.continuous = true;
-  recognition.interimResults = true;
+  recognition.continuous = false;      // single utterance per session
+  recognition.interimResults = true;   // show live text while speaking
   recognition.lang = 'en-US';
 
-  // Track which results we've already committed to avoid duplicates
-  var committedCount = 0;
+  // Tracks the interim text for this session only
+  var sessionFinal = '';
+  var sessionInterim = '';
+  var gotResult = false;
 
   recognition.onstart = function() {
     isRecording = true;
@@ -418,37 +425,34 @@ function startRecording() {
   };
 
   recognition.onresult = function(e) {
-    var interim = '';
-    for (var i = e.resultIndex; i < e.results.length; i++) {
+    sessionInterim = '';
+    for (var i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        // Only append if we haven't already committed this result
-        if (i >= committedCount) {
-          fullTranscript += e.results[i][0].transcript + ' ';
-          committedCount = i + 1;
-        }
+        sessionFinal = e.results[i][0].transcript;
+        gotResult = true;
       } else {
-        interim += e.results[i][0].transcript;
+        sessionInterim = e.results[i][0].transcript;
       }
     }
-    updateTranscriptDisplay(fullTranscript + interim);
+    // Show committed transcript + this session's live text
+    updateTranscriptDisplay(fullTranscript + (sessionFinal || sessionInterim));
   };
 
   recognition.onend = function() {
-    isRecording = false;
+    // Commit this session's final text (if any) to the master transcript
+    if (gotResult && sessionFinal) {
+      fullTranscript += sessionFinal + ' ';
+    }
     // Auto-restart if user hasn't explicitly stopped
     if (wantsRecording) {
-      try {
-        // Small delay to avoid rapid restart loops
-        setTimeout(function() {
-          if (wantsRecording) {
-            // Reset committed count for new session
-            committedCount = 0;
-            recognition.start();
-          }
-        }, 300);
-      } catch(e) {}
+      setTimeout(function() {
+        if (wantsRecording) {
+          launchRecognitionSession();
+        }
+      }, 200);
       return;
     }
+    isRecording = false;
     document.getElementById('mic-btn').classList.remove('recording');
     stopTimer();
     if (fullTranscript.trim()) {
@@ -459,12 +463,8 @@ function startRecording() {
   };
 
   recognition.onerror = function(e) {
-    if (e.error === 'no-speech') {
-      // Don't stop — just let onend auto-restart
-      return;
-    }
-    if (e.error === 'aborted') {
-      // Normal when we restart — ignore
+    if (e.error === 'no-speech' || e.error === 'aborted') {
+      // Let onend handle restart
       return;
     }
     isRecording = false;
