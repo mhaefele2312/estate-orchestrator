@@ -272,7 +272,12 @@ def write_to_sheet(rows: list[dict], config: dict) -> None:
 
     cred_path = rp(config.get("credentials_path", "credentials.json"))
     token_path = rp(config.get("token_path", "token.json"))
-    sheet_id = config["spreadsheet_id"]
+
+    # Per-user sheet routing: check for user-specific sheet ID first.
+    # captured_by is the same for all rows in a single transcript.
+    captured_by = rows[0].get("captured_by", "MHH") if rows else "MHH"
+    user_key = f"spreadsheet_id_{captured_by.lower()}"
+    sheet_id = config.get(user_key) or config["spreadsheet_id"]
 
     creds = _get_credentials(cred_path, token_path)
     gc = gspread.authorize(creds)
@@ -548,33 +553,44 @@ def run_confirm(transcript_path: Path) -> None:
 # ───────────────────────────────────────────────────────────────────────────
 
 def run_inbox(confirm: bool) -> None:
-    """Process all .md files in the configured inbox directory."""
+    """Process all .md files in all configured inbox directories."""
     config = load_config()
-    inbox_dir = Path(config.get("inbox_dir", r"G:\My Drive\MHH-Inbox"))
+
+    # Collect all inbox dirs from config (inbox_dir, hbs_inbox_dir, etc.)
+    inbox_dirs = []
+    for key in ("inbox_dir", "hbs_inbox_dir"):
+        val = config.get(key, "")
+        if val:
+            inbox_dirs.append(Path(val))
+
+    if not inbox_dirs:
+        inbox_dirs = [Path(r"G:\My Drive\MHH-Inbox")]
 
     print()
     print("=" * 60)
     mode_label = "LIVE RUN" if confirm else "DRY RUN"
     print(f"  CAPTURE PIPELINE - INBOX SWEEP ({mode_label})")
-    print(f"  Inbox: {inbox_dir}")
     print("=" * 60)
 
-    if not inbox_dir.exists():
-        print(f"\nERROR: Inbox directory not found: {inbox_dir}")
-        print("  Check inbox_dir in config.json")
-        sys.exit(1)
+    all_files = []
+    for inbox_dir in inbox_dirs:
+        if inbox_dir.exists():
+            found = sorted(inbox_dir.glob("*.md"))
+            all_files.extend(found)
+            print(f"  {inbox_dir}: {len(found)} file(s)")
+        else:
+            print(f"  {inbox_dir}: not found (skipping)")
 
-    files = sorted(inbox_dir.glob("*.md"))
-    if not files:
-        print("\n  Inbox is empty. Nothing to process.")
+    if not all_files:
+        print("\n  All inboxes empty. Nothing to process.")
         print("=" * 60)
         return
 
-    print(f"\n  Found {len(files)} file(s) to process.\n")
+    print(f"\n  Total: {len(all_files)} file(s) to process.\n")
 
     success = 0
     failed = 0
-    for f in files:
+    for f in all_files:
         try:
             if confirm:
                 run_confirm(f)
@@ -583,7 +599,7 @@ def run_inbox(confirm: bool) -> None:
             success += 1
         except SystemExit:
             failed += 1
-            print(f"  ERROR: Failed on {f.name} — skipping.")
+            print(f"  ERROR: Failed on {f.name} - skipping.")
 
     print()
     print("=" * 60)

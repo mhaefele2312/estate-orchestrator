@@ -5,6 +5,8 @@
   "token_path": "token.json",
   "logs_dir": "G:\\My Drive\\Estate Ops\\Logs",
   "inbox_dir": "G:\\My Drive\\MHH-Inbox",
+  "hbs_inbox_dir": "G:\\My Drive\\HBS-Inbox",
+  "spreadsheet_id_hbs": "",
   "capture_archive_dir": "G:\\My Drive\\Capture-Archive",
   "sot_dir": "G:\\My Drive\\Estate Ops\\Source-of-Truth",
   "gold_sot_dir": "E:\\12_Operations\\Source-of-Truth",
