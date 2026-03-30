@@ -413,6 +413,7 @@ function startRecording() {
   recognition.lang = 'en-US';
 
   var sessionText = '';
+  var lastInterim = '';
 
   recognition.onstart = function() {
     isRecording = true;
@@ -429,17 +430,23 @@ function startRecording() {
     var text = last[0].transcript;
     if (last.isFinal) {
       sessionText = text;
+      lastInterim = '';
+    } else {
+      lastInterim = text;
     }
     // Live display: committed text + what we're hearing right now
     updateTranscriptDisplay(committedTranscript + text);
   };
 
   recognition.onend = function() {
-    // Commit this session's final text (one clean chunk)
-    if (sessionText.trim()) {
-      committedTranscript += sessionText + ' ';
+    // Commit this session's text. Prefer final result, but if the session
+    // ended mid-speech (no final), use the last interim so we don't lose words.
+    var toCommit = sessionText || lastInterim;
+    if (toCommit.trim()) {
+      committedTranscript += toCommit + ' ';
       fullTranscript = committedTranscript;
       sessionText = '';
+      lastInterim = '';
     }
     // Update display with committed text
     updateTranscriptDisplay(committedTranscript);
