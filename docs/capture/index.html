@@ -552,13 +552,18 @@ function addSeparator() {
 }
 
 function finishCapture() {
+  // Grab the displayed text BEFORE stopping — this includes any interim
+  // words still being processed that haven't been committed to fullTranscript yet.
+  var displayArea = document.getElementById('transcript-area');
+  var displayedText = displayArea.textContent.trim();
+
   stopRecording();
   stopTimer();
 
-  // Also grab manually typed content if voice wasn't used
-  var area = document.getElementById('transcript-area');
-  if (area.contentEditable === 'true' && area.textContent.trim()) {
-    fullTranscript = area.textContent.trim();
+  // Use the displayed text as the source of truth — it always has the most
+  // complete version including words still being recognized when user tapped Done.
+  if (displayedText && displayedText !== 'Your transcript will appear here as you speak...') {
+    fullTranscript = displayedText;
   }
 
   if (!fullTranscript.trim()) {
