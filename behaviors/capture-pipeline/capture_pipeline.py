@@ -172,13 +172,27 @@ def extract_captured_by(filename: str) -> str:
 # Stage 2 — Gemini parsing
 # ───────────────────────────────────────────────────────────────────────────
 
+def _load_api_key() -> str:
+    """Read GEMINI_API_KEY from environment or ops-ledger/.env file."""
+    key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if key:
+        return key
+    env_path = _ops_ledger_dir() / ".env"
+    if env_path.exists():
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("GEMINI_API_KEY="):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return ""
+
+
 def call_gemini(transcript: str, today_str: str) -> list[dict]:
     """Send transcript to Gemini; return list of row dicts."""
-    api_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    api_key = _load_api_key()
     if not api_key:
-        print("\nERROR: GEMINI_API_KEY environment variable is not set.")
-        print("  Set it with: $env:GEMINI_API_KEY = 'your-key-here'  (PowerShell)")
-        print("  Or add it to your system environment variables.")
+        print("\nERROR: GEMINI_API_KEY not found.")
+        print("  Add it to behaviors/ops-ledger/.env as:")
+        print("  GEMINI_API_KEY=your-key-here")
         sys.exit(1)
 
     from google import genai
