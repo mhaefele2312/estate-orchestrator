@@ -1,41 +1,104 @@
-# Estate Orchestrator — Cursor Rules
-# These rules apply to every file in this project.
-# Cursor's AI reads these automatically. Do not delete this file.
+# Estate OS — Cursor Rules
+# Cursor reads this file automatically on every session.
+# Full specification: Estate-OS-Master-Plan-v2.md in the repo root.
+# Read the full master plan before making any architectural decisions.
 
-## What this project is
-This is the Estate Operating System boundary orchestrator for MH.
-It enforces security boundaries between vault layers.
-It operates on markdown files with YAML frontmatter.
+## What This Project Is
 
-## The golden rules — never break these
-1. All scripts must default to DRY-RUN mode. Nothing moves, writes, or deletes without an explicit --confirm flag.
-2. Every script must print plain-English output describing exactly what it did or would do.
-3. Scripts must never touch files outside their explicitly designated input/output directories.
-4. Every script must exit with a clear error message if anything goes wrong. Never fail silently.
-5. Never modify vault files except through the designated behavior functions.
-6. Always validate YAML frontmatter before writing. If validation fails, abort and report.
-7. Every behavior must have a --test mode that runs against fake test data, not real vault files.
+Estate OS is a personal and family estate operating system with three layers:
+1. Ops Ledger (Google Sheet) — non-sensitive daily operations, LLM-visible, append-only
+2. Obsidian Vault (local markdown) — dark to all LLMs, institutional memory
+3. Gold Vault (Cryptomator-encrypted) — LLMs never read or write
 
-## Output format — every script must follow this
+Voice memos from phone → Gemini parses into structured rows → Google Sheet → weekly sync to Obsidian.
+
+Owner: MHH (mhaefele@gmail.com) — non-developer, needs clear microsteps over clever abstractions.
+Repo: github.com/mhaefele2312/estate-orchestrator
+
+## Non-Negotiable Rules — violating any is a build-breaking error
+
+1. ZERO LLM WRITE. No LLM writes to any document except appending rows to the Ops Ledger Google Sheet via gspread.append_row(). LLMs never write to Obsidian. LLMs never write to Gold vault. LLMs never modify existing sheet rows.
+
+2. NO SENSITIVITY SCREENING. Do not build any PII detection, content filtering, or bifurcated routing in the capture pipeline. Everything goes to the Ops Ledger. Period.
+
+3. VAULTS ARE DARK. Cloud LLMs never read or write to Obsidian vault or Gold vault. Only future local LLMs (Phase 5+) may access vault data.
+
+4. FAIL-CLOSED. Every script defaults to dry-run mode. Real actions require --confirm flag.
+
+5. APPEND-ONLY. The Ops Ledger sheet is append-only. Flat log files are append-only. Nothing is ever deleted.
+
+6. THREE-STAGE PIPELINE ISOLATION. Stage 2 (Gemini) receives ONLY the raw transcript — never the sheet, never flat files. Stage 2 outputs ONLY JSON. Stage 3 (Python) writes to four targets simultaneously.
+
+7. GEMINI FOR DAILY OPS, CLAUDE FOR BUILDING. Do not build features that use Claude API for daily operations. Gemini handles captures and queries.
+
+## Architecture
+
+Phone → GitHub Pages capture app → raw .md transcript → Google Drive
+
+Laptop Python pipeline:
+  Stage 1: Read raw .md (no LLM)
+  Stage 2: Gemini API → JSON array of rows
+  Stage 3: Python writes to: Google Sheet + flat logs + contacts CSV + contact-mentions.md
+
+Weekly sync: Python pushes logs + SOT snapshots + contact pages → Obsidian
+
+## Sheet Schema (18 columns)
+
+entry_date, entry_time, capture_mode, item_type, domain, description, responsible, due_date, status, notes, source_capture, captured_by, given_name, family_name, organization, title, phone, email
+
+## 12 Domains
+
+01_Financial, 02_Legal, 03_Property, 04_Insurance, 05_Medical, 06_Tax, 07_Estate-Planning, 08_Vehicles, 09_Digital, 10_Family, 11_Contacts, 12_Operations
+
+## Key Dependencies
+
+- gspread — Google Sheets API (append_row for sheet writes)
+- google-auth — OAuth for Google APIs
+- google-generativeai — Gemini API for capture parsing
+- Python 3
+
+## File Paths on the Estate Laptop
+
+Obsidian vault:    C:\Users\mhhro\Documents\Obsidian Vault
+Gold vault:        E:\
+Gold backup:       G:\My Drive\Gold-Backup
+Estate Ops:        G:\My Drive\Estate Ops
+MHH Inbox:         G:\My Drive\MHH-Inbox
+HBS Inbox:         G:\My Drive\HBS-Inbox
+Staging Intake:    G:\My Drive\Staging-Intake
+Capture Archive:   G:\My Drive\Capture-Archive
+
+Note: Scripts should use config files or environment variables for paths.
+
+## Output Format — every script must follow this
+
 - DRY RUN: [action that would happen]
 - ACTION: [action that was taken]
 - ERROR: [what went wrong]
-- PASS: [test passed]
-- FAIL: [test failed]
 - DONE: [summary at end of every run]
 
-## Directory rules
-- behaviors/ — one subfolder per behavior (gate, publish, health-check, backup-check, digest-generate)
-- tests/ — test data and test runner scripts only
-- logs/ — timestamped log files only, never delete these
-- Never create files outside these directories without explicit instruction
+## Code Rules
 
-## Language
-- Python only. No PowerShell. No bash scripts.
-- Python 3.10+. Standard library only unless explicitly approved.
+- Python only. Python 3.10+.
 - Every function must have a plain-English docstring.
+- Every behavior lives in its own subfolder under behaviors/
 
-## What this project is NOT
-- Not a database. Not a web server. Not a UI.
-- Not a replacement for human judgment. Every behavior requires human approval or review.
-- Never connect to the internet. Never call external APIs.
+## Things NOT to Build
+
+- No sensitivity screening, PII detection, or content filtering
+- No bifurcated routing
+- No Claude API calls in daily operations
+- No Publish behavior development (deferred to Phase 7+)
+- No direct LLM writes to Obsidian or Gold vault
+- No database — Google Sheets is the database
+- No custom UI beyond the capture app
+
+## How to Start a Build Session
+
+1. Read this file
+2. Read Estate-OS-Master-Plan-v2.md for full specification
+3. Run git log --oneline -20 to see recent work
+4. Check what phase we're on by examining existing code
+5. Pick up where the last session left off
+6. Build one step at a time, show diffs, get approval before moving on
+7. MHH is not a developer — give clear microsteps, not abstractions
