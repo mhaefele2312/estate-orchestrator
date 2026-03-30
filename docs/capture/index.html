@@ -400,26 +400,19 @@ function startRecording() {
   }
 
   wantsRecording = true;
-  // Save whatever transcript exists before this recording starts
-  // (in case user taps mic again to add more after a stop)
   committedTranscript = fullTranscript;
-  launchSession();
-}
 
-// APPROACH: Use continuous=true so Chrome keeps listening through pauses.
-// Android Chrome may still kill the session after extended silence — that's
-// fine, onend auto-restarts it seamlessly. The key to avoiding duplicates:
-// rebuild this session's text from the FULL results array every time
-// (not incremental appending). On session end, commit and start fresh.
-function launchSession() {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  recognition = new SR();
-  recognition.continuous = true;
+  // Create ONE recognizer object and reuse it across restarts (faster).
+  // continuous=false means each session captures one utterance then ends.
+  // We take ONLY the final transcript from each session — one clean chunk
+  // per pause — then instantly restart. No duplicates possible.
+  var SR2 = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR2();
+  recognition.continuous = false;
   recognition.interimResults = true;
   recognition.lang = 'en-US';
 
-  // This session's accumulated final text (rebuilt from results array each event)
-  var sessionFinals = '';
+  var sessionText = '';
 
   recognition.onstart = function() {
     isRecording = true;
@@ -429,37 +422,40 @@ function launchSession() {
   };
 
   recognition.onresult = function(e) {
-    // Rebuild ALL text from this session's results array from scratch.
-    // This is safe because e.results contains every result from THIS session,
-    // and results that were interim become final — they don't duplicate.
-    var finals = '';
-    var interim = '';
-    for (var i = 0; i < e.results.length; i++) {
-      if (e.results[i].isFinal) {
-        finals += e.results[i][0].transcript + ' ';
-      } else {
-        interim += e.results[i][0].transcript;
-      }
+    // With continuous=false, there is only ONE result (index 0).
+    // It starts interim and eventually becomes final.
+    // Take ONLY the latest version — never concatenate multiple results.
+    var last = e.results[e.results.length - 1];
+    var text = last[0].transcript;
+    if (last.isFinal) {
+      sessionText = text;
     }
-    sessionFinals = finals;
-    // Display: previous sessions' text + this session's finals + live interim
-    updateTranscriptDisplay(committedTranscript + finals + interim);
+    // Live display: committed text + what we're hearing right now
+    updateTranscriptDisplay(committedTranscript + text);
   };
 
   recognition.onend = function() {
-    // Commit this session's final text
-    if (sessionFinals.trim()) {
-      committedTranscript += sessionFinals;
+    // Commit this session's final text (one clean chunk)
+    if (sessionText.trim()) {
+      committedTranscript += sessionText + ' ';
       fullTranscript = committedTranscript;
+      sessionText = '';
     }
+    // Update display with committed text
+    updateTranscriptDisplay(committedTranscript);
 
     // Auto-restart if user hasn't tapped stop
     if (wantsRecording) {
-      setTimeout(function() {
-        if (wantsRecording) {
-          launchSession();
-        }
-      }, 100);
+      try {
+        recognition.start();
+      } catch(e) {
+        // Some browsers need a tiny delay before restart
+        setTimeout(function() {
+          if (wantsRecording) {
+            try { recognition.start(); } catch(e2) {}
+          }
+        }, 50);
+      }
       return;
     }
 
@@ -476,7 +472,7 @@ function launchSession() {
 
   recognition.onerror = function(e) {
     if (e.error === 'no-speech' || e.error === 'aborted') {
-      // Normal on silence timeout — onend will auto-restart
+      // Normal on silence — onend will auto-restart
       return;
     }
     isRecording = false;
