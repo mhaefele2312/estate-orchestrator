@@ -31,6 +31,7 @@ TESTS = [
     ("Staging Sorter (imports)",  ROOT / "behaviors" / "staging-intake" / "staging_sorter.py",  "--test"),
     ("Security Scan (imports)",   ROOT / "behaviors" / "staging-intake" / "security_scan.py",   "--test"),
     ("Staging Router (imports)",  ROOT / "behaviors" / "staging-intake" / "staging_router.py",  "--test"),
+    ("Weekly Review (imports)",   ROOT / "behaviors" / "email-intake"   / "weekly_review.py",   "--test"),
 ]
 
 def run_test(name, script_path, flag):
