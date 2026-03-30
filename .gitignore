@@ -21,3 +21,8 @@ config/secrets.*
 config/paths_local.*
 credentials.json
 token.json
+behaviors/ops-ledger/config.json
+
+# Dev artifacts
+icon_preview.html
+icon_preview.png
