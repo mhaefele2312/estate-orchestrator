@@ -1,5 +1,5 @@
 """
-Estate OS — Source-of-Truth Snapshot (Phase 1, Item 4)
+Estate OS -- Source-of-Truth Snapshot (Phase 1, Item 4)
 ======================================================
 Exports all worksheets from the MHH-Ops-Ledger Google Sheet as timestamped
 CSV files, then copies them to three locations:
@@ -41,7 +41,7 @@ from datetime import datetime
 from pathlib import Path
 
 
-# ── Config loading (reuses ops-ledger config.json) ─────────────────────────
+# -- Config loading (reuses ops-ledger config.json) -------------------------
 
 def _ops_ledger_dir() -> Path:
     """Return the ops-ledger folder (sibling of snapshot folder)."""
@@ -68,7 +68,7 @@ def _resolve_path(base: Path, p: str) -> Path:
     return (base / path).resolve()
 
 
-# ── Google Sheets auth (same pattern as verify_sheets_auth.py) ──────────────
+# -- Google Sheets auth (same pattern as verify_sheets_auth.py) --------------
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
@@ -100,7 +100,7 @@ def _get_credentials(credentials_path: Path, token_path: Path):
     return creds
 
 
-# ── Export functions ────────────────────────────────────────────────────────
+# -- Export functions --------------------------------------------------------
 
 def export_worksheet_to_csv(worksheet, output_path: Path):
     """Export a single worksheet to a CSV file."""
@@ -124,7 +124,7 @@ def copy_to_destination(source: Path, dest_dir: Path, filename: str) -> bool:
         return False
 
 
-# ── Main logic ──────────────────────────────────────────────────────────────
+# -- Main logic --------------------------------------------------------------
 
 def run_snapshot(confirm: bool):
     config = load_config()
@@ -149,7 +149,7 @@ def run_snapshot(confirm: bool):
 
     print()
     print("=" * 60)
-    print(f"  SNAPSHOT — SOURCE-OF-TRUTH PROMOTION ({mode_label})")
+    print(f"  SNAPSHOT -- SOURCE-OF-TRUTH PROMOTION ({mode_label})")
     print("=" * 60)
     print()
     print(f"  Date:              {today}")
@@ -168,7 +168,7 @@ def run_snapshot(confirm: bool):
         print("=" * 60)
         return
 
-    # ── Connect to Google Sheets ──
+    # -- Connect to Google Sheets --
     import gspread
 
     print("  Connecting to Google Sheets...")
@@ -180,7 +180,7 @@ def run_snapshot(confirm: bool):
     print(f"  Found {len(worksheets)} worksheet(s): {', '.join(ws.title for ws in worksheets)}")
     print()
 
-    # ── Export each worksheet ──
+    # -- Export each worksheet --
     exported_files = []
     raw_log_csv = None  # Track the Raw Log export for sot-latest pointer
 
@@ -190,10 +190,10 @@ def run_snapshot(confirm: bool):
         filename = f"sot-MHH-{today}-{safe_name}.csv"
         output_path = sot_dir / filename
 
-        print(f"  Exporting '{ws.title}' → {filename}")
+        print(f"  Exporting '{ws.title}' -> {filename}")
         export_worksheet_to_csv(ws, output_path)
         exported_files.append((output_path, filename))
-        print(f"    ✓ Saved to {output_path}")
+        print(f"    OK Saved to {output_path}")
 
         # Track the Raw Log tab specifically
         if ws.title.lower().replace(" ", "") in ("rawlog", "raw-log", "rawlog"):
@@ -204,13 +204,13 @@ def run_snapshot(confirm: bool):
         raw_log_csv = exported_files[0]
         print(f"\n  Note: No 'Raw Log' tab found. Using first tab ({worksheets[0].title}) for sot-latest.")
 
-    # ── Write sot-latest-MHH.csv pointer ──
+    # -- Write sot-latest-MHH.csv pointer --
     if raw_log_csv:
         latest_path = sot_dir / "sot-latest-MHH.csv"
         shutil.copy2(str(raw_log_csv[0]), str(latest_path))
-        print(f"\n  ✓ Updated sot-latest-MHH.csv → {raw_log_csv[1]}")
+        print(f"\n  OK Updated sot-latest-MHH.csv -> {raw_log_csv[1]}")
 
-    # ── Copy all exported files to Gold vault and Obsidian ──
+    # -- Copy all exported files to Gold vault and Obsidian --
     print()
     gold_ok = True
     obsidian_ok = True
@@ -228,24 +228,24 @@ def run_snapshot(confirm: bool):
         if not copy_to_destination(sot_dir / "sot-latest-MHH.csv", obsidian_sot_dir, "sot-latest-MHH.csv"):
             obsidian_ok = False
 
-    # ── Summary ──
+    # -- Summary --
     print()
     print("  SUMMARY:")
     print(f"    Worksheets exported: {len(exported_files)}")
-    print(f"    SOT folder:         ✓ {sot_dir}")
+    print(f"    SOT folder:         OK {sot_dir}")
     if gold_ok:
-        print(f"    Gold vault copy:    ✓ {gold_sot_dir}")
+        print(f"    Gold vault copy:    OK {gold_sot_dir}")
     else:
-        print(f"    Gold vault copy:    ⚠ Some files failed (drive may not be mounted)")
+        print(f"    Gold vault copy:    WARNING Some files failed (drive may not be mounted)")
     if obsidian_ok:
-        print(f"    Obsidian copy:      ✓ {obsidian_sot_dir}")
+        print(f"    Obsidian copy:      OK {obsidian_sot_dir}")
     else:
-        print(f"    Obsidian copy:      ⚠ Some files failed (vault path may differ on this machine)")
+        print(f"    Obsidian copy:      WARNING Some files failed (vault path may differ on this machine)")
     print()
     print("=" * 60)
 
 
-# ── Import test (for run_tests.py) ──────────────────────────────────────────
+# -- Import test (for run_tests.py) ------------------------------------------
 
 def run_import_test() -> bool:
     """Ensure dependencies are installed (safe for run_tests.py)."""
@@ -271,7 +271,7 @@ def run_import_test() -> bool:
     return True
 
 
-# ── CLI entry point ─────────────────────────────────────────────────────────
+# -- CLI entry point ---------------------------------------------------------
 
 if __name__ == "__main__":
     args = [a.lower() for a in sys.argv[1:]]
