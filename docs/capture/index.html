@@ -512,6 +512,8 @@ function updateTranscriptDisplay(text) {
 
 // ── TIMER ─────────────────────────────────────────────────────────────────
 function startTimer() {
+  // Clear any existing timer first (prevents orphaned intervals from restarts)
+  if (timerInterval) { clearInterval(timerInterval); }
   timerInterval = setInterval(function() {
     recordSeconds++;
     var m = Math.floor(recordSeconds / 60);
