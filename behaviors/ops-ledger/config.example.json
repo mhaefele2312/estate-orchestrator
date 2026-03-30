@@ -4,6 +4,7 @@
   "credentials_path": "credentials.json",
   "token_path": "token.json",
   "logs_dir": "G:\\My Drive\\Estate Ops\\Logs",
+  "inbox_dir": "G:\\My Drive\\MHH-Inbox",
   "capture_archive_dir": "G:\\My Drive\\Capture-Archive",
   "sot_dir": "G:\\My Drive\\Estate Ops\\Source-of-Truth",
   "gold_sot_dir": "E:\\12_Operations\\Source-of-Truth",

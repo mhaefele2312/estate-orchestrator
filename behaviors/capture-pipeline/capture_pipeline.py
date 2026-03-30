@@ -547,6 +547,51 @@ def run_confirm(transcript_path: Path) -> None:
 # Entry point
 # ───────────────────────────────────────────────────────────────────────────
 
+def run_inbox(confirm: bool) -> None:
+    """Process all .md files in the configured inbox directory."""
+    config = load_config()
+    inbox_dir = Path(config.get("inbox_dir", r"G:\My Drive\MHH-Inbox"))
+
+    print()
+    print("=" * 60)
+    mode_label = "LIVE RUN" if confirm else "DRY RUN"
+    print(f"  CAPTURE PIPELINE - INBOX SWEEP ({mode_label})")
+    print(f"  Inbox: {inbox_dir}")
+    print("=" * 60)
+
+    if not inbox_dir.exists():
+        print(f"\nERROR: Inbox directory not found: {inbox_dir}")
+        print("  Check inbox_dir in config.json")
+        sys.exit(1)
+
+    files = sorted(inbox_dir.glob("*.md"))
+    if not files:
+        print("\n  Inbox is empty. Nothing to process.")
+        print("=" * 60)
+        return
+
+    print(f"\n  Found {len(files)} file(s) to process.\n")
+
+    success = 0
+    failed = 0
+    for f in files:
+        try:
+            if confirm:
+                run_confirm(f)
+            else:
+                run_dry_run(f)
+            success += 1
+        except SystemExit:
+            failed += 1
+            print(f"  ERROR: Failed on {f.name} — skipping.")
+
+    print()
+    print("=" * 60)
+    print(f"  INBOX SWEEP COMPLETE")
+    print(f"  Processed: {success}   Failed: {failed}")
+    print("=" * 60)
+
+
 if __name__ == "__main__":
     args = sys.argv[1:]
     arg_lower = [a.lower() for a in args]
@@ -554,8 +599,14 @@ if __name__ == "__main__":
     if "--test" in arg_lower:
         sys.exit(0 if run_import_test() else 1)
 
-    # Get --file argument
-    transcript_path = None
+    confirm = "--confirm" in arg_lower
+
+    # --inbox mode: process all files in the inbox directory
+    if "--inbox" in arg_lower:
+        run_inbox(confirm)
+        sys.exit(0)
+
+    # --file mode: process a single transcript
     if "--file" in arg_lower:
         idx = arg_lower.index("--file")
         if idx + 1 < len(args):
@@ -564,15 +615,17 @@ if __name__ == "__main__":
             print("\nERROR: --file requires a path argument.")
             print("  Example: python capture_pipeline.py --file transcript.md --confirm")
             sys.exit(1)
-    else:
-        print()
-        print("Usage:")
-        print("  python capture_pipeline.py --file <transcript.md>")
-        print("  python capture_pipeline.py --file <transcript.md> --confirm")
-        print("  python capture_pipeline.py --test")
-        sys.exit(1)
+        if confirm:
+            run_confirm(transcript_path)
+        else:
+            run_dry_run(transcript_path)
+        sys.exit(0)
 
-    if "--confirm" in arg_lower:
-        run_confirm(transcript_path)
-    else:
-        run_dry_run(transcript_path)
+    print()
+    print("Usage:")
+    print("  python capture_pipeline.py --inbox               # dry-run all inbox files")
+    print("  python capture_pipeline.py --inbox --confirm     # process all inbox files")
+    print("  python capture_pipeline.py --file <transcript.md>")
+    print("  python capture_pipeline.py --file <transcript.md> --confirm")
+    print("  python capture_pipeline.py --test")
+    sys.exit(1)
