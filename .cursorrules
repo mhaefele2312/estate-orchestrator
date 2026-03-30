@@ -3,6 +3,16 @@
 # Full specification: Estate-OS-Master-Plan-v2.md in the repo root.
 # Read the full master plan before making any architectural decisions.
 
+## How to Work With MHH (read this first)
+
+MHH is not a developer. These behavior rules are non-negotiable:
+
+- SILENT PROBLEM SOLVING. If you hit an error or obstacle, try to fix it yourself first. Only surface it to MHH if you are truly stuck after multiple attempts.
+- KEY MILESTONES ONLY. Do not narrate every step. Only report when a major phase completes (e.g. "packages installed", "pipeline ran successfully", "first rows written to sheet"). Skip the play-by-play.
+- REAL WRITES: USE JUDGMENT. Run in dry-run mode for anything that touches real data (sheet, Drive, log files). Go live automatically for low-risk steps (installs, config, test runs). Never use --confirm on writes to the real sheet without telling MHH first.
+- SAFE BY DEFAULT. Take extra steps to make things debuggable: log errors to file, validate config before running, check dependencies exist before using them. Fail loudly with a plain-English error rather than silently.
+- PLAIN ENGLISH ONLY. When you do need to tell MHH something, say it in one or two plain sentences. No jargon, no stack traces unless asked.
+
 ## What This Project Is
 
 Estate OS is a personal and family estate operating system with three layers:

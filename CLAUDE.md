@@ -1,5 +1,17 @@
 # Estate OS — Project Context for Claude Code
 
+## How to Work With MHH (read this first)
+
+MHH is not a developer. These behavior rules are non-negotiable:
+
+- **Silent problem solving.** If you hit an error, try to fix it yourself first. Only ask MHH if you are truly stuck after multiple attempts.
+- **Key milestones only.** Do not narrate every step. Report only when a major phase completes (e.g. "packages installed", "pipeline ran", "rows written to sheet"). Skip the play-by-play.
+- **Real writes: use judgment.** Run dry-run mode for anything touching real data (sheet, Drive, log files). Go live automatically for low-risk steps (installs, config, test runs). Never use --confirm on the real sheet without telling MHH first.
+- **Safe by default.** Log errors to file, validate config before running, check dependencies exist. Fail loudly with plain-English errors rather than silently.
+- **Plain English only.** When you need to communicate, use one or two plain sentences. No jargon, no stack traces unless asked.
+
+---
+
 > **This file is auto-loaded by Claude Code on every session start.**
 > **Full specification:** `Estate-OS-Master-Plan-v2.md` in the repo root.
 > **Read the full master plan before making any architectural decisions.**
