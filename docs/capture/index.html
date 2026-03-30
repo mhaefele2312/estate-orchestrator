@@ -323,6 +323,7 @@ var fullTranscript = '';
 var recognition = null;
 var isRecording = false;
 var wantsRecording = false;
+var committedTranscript = '';
 var timerInterval = null;
 var recordSeconds = 0;
 
@@ -399,23 +400,26 @@ function startRecording() {
   }
 
   wantsRecording = true;
-  launchRecognitionSession();
+  // Save whatever transcript exists before this recording starts
+  // (in case user taps mic again to add more after a stop)
+  committedTranscript = fullTranscript;
+  launchSession();
 }
 
-// Each session captures ONE utterance (speech until a natural pause).
-// We take its final text, append to fullTranscript, and restart immediately.
-// This avoids all duplication because each session produces exactly one final.
-function launchRecognitionSession() {
+// APPROACH: Use continuous=true so Chrome keeps listening through pauses.
+// Android Chrome may still kill the session after extended silence — that's
+// fine, onend auto-restarts it seamlessly. The key to avoiding duplicates:
+// rebuild this session's text from the FULL results array every time
+// (not incremental appending). On session end, commit and start fresh.
+function launchSession() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.continuous = false;      // single utterance per session
-  recognition.interimResults = true;   // show live text while speaking
+  recognition.continuous = true;
+  recognition.interimResults = true;
   recognition.lang = 'en-US';
 
-  // Tracks the interim text for this session only
-  var sessionFinal = '';
-  var sessionInterim = '';
-  var gotResult = false;
+  // This session's accumulated final text (rebuilt from results array each event)
+  var sessionFinals = '';
 
   recognition.onstart = function() {
     isRecording = true;
@@ -425,33 +429,41 @@ function launchRecognitionSession() {
   };
 
   recognition.onresult = function(e) {
-    sessionInterim = '';
+    // Rebuild ALL text from this session's results array from scratch.
+    // This is safe because e.results contains every result from THIS session,
+    // and results that were interim become final — they don't duplicate.
+    var finals = '';
+    var interim = '';
     for (var i = 0; i < e.results.length; i++) {
       if (e.results[i].isFinal) {
-        sessionFinal = e.results[i][0].transcript;
-        gotResult = true;
+        finals += e.results[i][0].transcript + ' ';
       } else {
-        sessionInterim = e.results[i][0].transcript;
+        interim += e.results[i][0].transcript;
       }
     }
-    // Show committed transcript + this session's live text
-    updateTranscriptDisplay(fullTranscript + (sessionFinal || sessionInterim));
+    sessionFinals = finals;
+    // Display: previous sessions' text + this session's finals + live interim
+    updateTranscriptDisplay(committedTranscript + finals + interim);
   };
 
   recognition.onend = function() {
-    // Commit this session's final text (if any) to the master transcript
-    if (gotResult && sessionFinal) {
-      fullTranscript += sessionFinal + ' ';
+    // Commit this session's final text
+    if (sessionFinals.trim()) {
+      committedTranscript += sessionFinals;
+      fullTranscript = committedTranscript;
     }
-    // Auto-restart if user hasn't explicitly stopped
+
+    // Auto-restart if user hasn't tapped stop
     if (wantsRecording) {
       setTimeout(function() {
         if (wantsRecording) {
-          launchRecognitionSession();
+          launchSession();
         }
-      }, 200);
+      }, 100);
       return;
     }
+
+    // User explicitly stopped
     isRecording = false;
     document.getElementById('mic-btn').classList.remove('recording');
     stopTimer();
@@ -464,7 +476,7 @@ function launchRecognitionSession() {
 
   recognition.onerror = function(e) {
     if (e.error === 'no-speech' || e.error === 'aborted') {
-      // Let onend handle restart
+      // Normal on silence timeout — onend will auto-restart
       return;
     }
     isRecording = false;
@@ -620,6 +632,7 @@ function submitCapture() {
 // ── RESET ─────────────────────────────────────────────────────────────────
 function resetApp() {
   fullTranscript = '';
+  committedTranscript = '';
   currentPrompt = 0;
   recordSeconds = 0;
   document.getElementById('record-timer').textContent = '';
