@@ -298,10 +298,21 @@ def get_ollama_status() -> dict:
 
 # ── Sidebar ──────────────────────────────────────────────────────────────────
 
-def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
-    """Returns (model_name, vault_scope_list_or_None)."""
-    selected_model = ollama.get("selected", "")
-    vault_scope    = VAULT_SCOPES[DEFAULT_SCOPE]
+def get_cloud_providers() -> dict:
+    """Check which cloud LLM providers are available."""
+    from cloud_client import available_providers
+    return available_providers()
+
+
+def render_sidebar(engine, is_test: bool, ollama: dict,
+                   cloud: dict) -> tuple:
+    """
+    Returns (provider, model_name, vault_scope_list_or_None).
+    provider is one of: "ollama", "gemini", "claude", or "none".
+    """
+    selected_provider = "none"
+    selected_model    = ""
+    vault_scope       = VAULT_SCOPES[DEFAULT_SCOPE]
 
     with st.sidebar:
         st.image(ROSE_AVATAR, width=40)
@@ -327,11 +338,50 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
         vault_scope = VAULT_SCOPES[scope_label]
         st.divider()
 
-        # ── Model selector
-        st.markdown("**AI model**")
+        # ── LLM provider selector
+        st.markdown("**AI provider**")
+
+        # Build provider options dynamically
+        provider_options = []
+        provider_keys    = []
+
+        # Always offer local Ollama
         if ollama["available"] and ollama["models"]:
+            provider_options.append("Local (Ollama)")
+            provider_keys.append("ollama")
+        else:
+            provider_options.append("Local (Ollama) -- offline")
+            provider_keys.append("ollama_off")
+
+        # Cloud providers
+        from cloud_client import PROVIDER_MODELS
+        for name in ("Gemini", "Claude"):
+            info = cloud.get(name, {})
+            if info.get("available"):
+                provider_options.append(f"Cloud ({name})")
+                provider_keys.append(name.lower())
+            else:
+                reason = info.get("reason", "not configured")
+                provider_options.append(f"Cloud ({name}) -- {reason}")
+                provider_keys.append(f"{name.lower()}_off")
+
+        chosen_idx = st.radio(
+            "Provider",
+            options=range(len(provider_options)),
+            format_func=lambda i: provider_options[i],
+            index=0,
+            label_visibility="collapsed",
+        )
+        chosen_key = provider_keys[chosen_idx]
+
+        # ── Model selector based on chosen provider
+        st.divider()
+        st.markdown("**Model**")
+
+        if chosen_key == "ollama":
+            selected_provider = "ollama"
             selected_model = st.selectbox(
-                "Model",
+                "Ollama model",
                 options=ollama["models"],
                 index=(
                     ollama["models"].index(ollama["selected"])
@@ -339,10 +389,35 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
                 ),
                 label_visibility="collapsed",
             )
-        elif ollama["available"]:
-            st.warning("No models installed.  \nRun: `ollama pull mistral`")
+
+        elif chosen_key in ("gemini", "claude"):
+            selected_provider = chosen_key
+            pname = chosen_key.title()
+            models = PROVIDER_MODELS.get(pname, [])
+            selected_model = st.selectbox(
+                f"{pname} model",
+                options=models,
+                index=0,
+                label_visibility="collapsed",
+            )
+
         else:
-            st.info("Ollama not running.")
+            # Provider not available
+            selected_provider = "none"
+            if "ollama" in chosen_key:
+                st.info("Start Ollama or run:\n`ollama pull mistral`")
+            else:
+                pname = chosen_key.replace("_off", "").title()
+                reason = cloud.get(pname, {}).get("reason", "")
+                st.info(f"Set {reason}")
+
+        # Privacy note for cloud
+        if selected_provider in ("gemini", "claude"):
+            st.success(
+                "Cloud mode is safe.  \n"
+                "Only tokenized text is sent.  \n"
+                "Real values are restored locally."
+            )
 
         st.divider()
 
@@ -372,7 +447,7 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
             st.divider()
             st.warning("Test mode  \nUsing sample data.")
 
-    return selected_model, vault_scope
+    return selected_provider, selected_model, vault_scope
 
 
 # ── Format helpers ───────────────────────────────────────────────────────────
@@ -419,21 +494,26 @@ def main():
 
     engine = load_engine(str(token_store))
     ollama = get_ollama_status()
-    selected_model, vault_scope = render_sidebar(engine, is_test, ollama)
+    cloud  = get_cloud_providers()
+    provider, selected_model, vault_scope = render_sidebar(
+        engine, is_test, ollama, cloud
+    )
 
     # ── Header
     scope_label = "All vaults" if vault_scope is None else " + ".join(
         v.title() for v in vault_scope
     )
-    ai_badge = (
-        f"<span class='ct-badge ct-badge-ai'>Ollama: {selected_model}</span>"
-        if ollama["available"] and selected_model
-        else "<span class='ct-badge ct-badge-scope'>AI offline</span>"
-    )
+    if provider == "ollama":
+        ai_badge = f"<span class='ct-badge ct-badge-ai'>Ollama: {selected_model}</span>"
+    elif provider in ("gemini", "claude"):
+        ai_badge = f"<span class='ct-badge ct-badge-ai'>Cloud: {selected_model}</span>"
+    else:
+        ai_badge = "<span class='ct-badge ct-badge-scope'>No AI selected</span>"
+
     st.markdown(
         f"<div class='ct-header'>"
         f"<span class='ct-logo'>Claude Tokenized</span>"
-        f"<span class='ct-badge ct-badge-local'>Local</span>"
+        f"<span class='ct-badge ct-badge-local'>{'Local' if provider == 'ollama' else 'Tokenized'}</span>"
         f"{ai_badge}"
         f"<span class='ct-badge ct-badge-scope'>Scope: {scope_label}</span>"
         f"</div>",
@@ -450,7 +530,6 @@ def main():
         avatar = ROSE_AVATAR if msg["role"] == "assistant" else None
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"], unsafe_allow_html=True)
-            # Show sources if stored
             if msg.get("sources_html"):
                 with st.expander("Sources", expanded=False):
                     st.markdown(msg["sources_html"], unsafe_allow_html=True)
@@ -462,32 +541,41 @@ def main():
             st.markdown(prompt)
 
         with st.chat_message("assistant", avatar=ROSE_AVATAR):
-            # Step 1: Search vault
+            # Step 1: Search vault (always hybrid when index exists)
             with st.spinner("Searching vault..."):
                 results = engine.search(prompt, top_k=5, vaults=vault_scope)
 
-            can_ai = (
-                ollama["available"]
-                and selected_model
-                and ollama.get("models")
-            )
+            # Build context passages for LLM
+            context_passages = []
+            for r in results:
+                doc = r["doc"]
+                # For cloud LLMs: send TOKENIZED text (safe)
+                # For local Ollama: send detokenized text (stays on machine)
+                if provider in ("gemini", "claude"):
+                    excerpt = doc["text"]  # tokenized version
+                    # Extract relevant portion using same logic
+                    import re
+                    query_words = (
+                        set(re.sub(r"[^\w\s]", " ", prompt.lower()).split())
+                        - engine._STOP_WORDS
+                    )
+                    excerpt = engine._extract_excerpt(doc["text"], query_words)
+                else:
+                    excerpt = r["excerpt"]  # already detokenized
 
-            if can_ai:
-                # ── AI mode: search + synthesize answer
+                context_passages.append({
+                    "filename": doc["filename"],
+                    "vault":    doc["vault"],
+                    "domain":   doc.get("domain", ""),
+                    "excerpt":  excerpt,
+                })
+
+            if provider == "ollama":
+                # ── Local Ollama
                 parent = str(Path(__file__).parent.parent / "estate-assistant")
                 if parent not in sys.path:
                     sys.path.insert(0, parent)
                 from ollama_client import build_prompt, generate_stream, OllamaError
-
-                context_passages = []
-                for r in results:
-                    doc = r["doc"]
-                    context_passages.append({
-                        "filename": doc["filename"],
-                        "vault":    doc["vault"],
-                        "domain":   doc.get("domain", ""),
-                        "excerpt":  r["excerpt"],
-                    })
 
                 full_prompt = build_prompt(context_passages, prompt)
                 try:
@@ -498,56 +586,79 @@ def main():
                     response_text = f"Ollama error: {e}"
                     st.error(response_text)
 
-                # Show sources
-                sources_html = ""
-                if results:
-                    sources_html = format_sources_html(results)
-                    with st.expander(
-                        f"Sources ({len(results)} documents)", expanded=False
-                    ):
-                        st.markdown(sources_html, unsafe_allow_html=True)
+            elif provider in ("gemini", "claude"):
+                # ── Cloud LLM (tokenized text sent, response de-tokenized)
+                from cloud_client import cloud_stream
 
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response_text,
-                    "sources_html": sources_html,
-                })
-
-            else:
-                # ── Keyword-only mode: show search results directly
-                if results:
-                    count = len(results)
-                    response_html = (
-                        f"Found **{count}** matching "
-                        f"{'document' if count == 1 else 'documents'}.\n\n"
-                    )
-                    response_html += format_sources_html(results)
-
-                    if not ollama["available"]:
-                        response_html += (
-                            "\n\n*Ollama is not running. Install it to get "
-                            "AI-synthesized answers instead of raw search results.*"
+                try:
+                    # Stream from cloud — response will contain tokens
+                    tokenized_response = st.write_stream(
+                        cloud_stream(
+                            provider.title(), selected_model,
+                            context_passages, prompt,
                         )
-                else:
-                    response_html = (
-                        "<div class='no-results'>No matching documents found. "
-                        "Try different terms or check that your vault has been "
-                        "tokenized.</div>"
                     )
+                    # De-tokenize: replace [ACCT_0001] etc. with real values
+                    response_text = engine.detokenize(tokenized_response)
 
-                st.markdown(response_html, unsafe_allow_html=True)
-                st.session_state.messages.append({
-                    "role": "assistant",
-                    "content": response_html,
-                })
+                    # If de-tokenization changed anything, show the clean version
+                    if response_text != tokenized_response:
+                        # Clear the streamed (tokenized) output and show clean
+                        st.markdown("---")
+                        st.markdown(response_text)
+
+                except Exception as e:
+                    response_text = f"Cloud API error: {e}"
+                    st.error(response_text)
+
+            elif provider == "none" and results:
+                # ── No AI — show keyword results directly
+                count = len(results)
+                response_text = (
+                    f"Found **{count}** matching "
+                    f"{'document' if count == 1 else 'documents'}.\n\n"
+                )
+                response_text += format_sources_html(results)
+                response_text += (
+                    "\n\n*Select an AI provider in the sidebar "
+                    "for synthesized answers.*"
+                )
+                st.markdown(response_text, unsafe_allow_html=True)
+            else:
+                response_text = (
+                    "<div class='no-results'>No matching documents found. "
+                    "Try different terms or check that your vault has been "
+                    "tokenized.</div>"
+                )
+                st.markdown(response_text, unsafe_allow_html=True)
+
+            # Show sources
+            sources_html = ""
+            if results:
+                sources_html = format_sources_html(results)
+                with st.expander(
+                    f"Sources ({len(results)} documents)", expanded=False
+                ):
+                    st.markdown(sources_html, unsafe_allow_html=True)
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response_text,
+                "sources_html": sources_html if results else "",
+            })
 
     # ── Footer
+    privacy = (
+        "Tokenized text only leaves this machine"
+        if provider in ("gemini", "claude")
+        else "No internet &bull; No cloud &bull; Documents stay on this machine"
+    )
     st.markdown(
-        "<div class='ct-footer'>"
-        "Claude Tokenized &mdash; "
-        "Private AI for your estate vault &mdash; "
-        "No internet &bull; No cloud &bull; Documents stay on this machine"
-        "</div>",
+        f"<div class='ct-footer'>"
+        f"Claude Tokenized &mdash; "
+        f"Private AI for your estate vault &mdash; "
+        f"{privacy}"
+        f"</div>",
         unsafe_allow_html=True,
     )
 

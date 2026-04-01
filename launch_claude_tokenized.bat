@@ -32,8 +32,18 @@ echo  Keep this window open while using the app.
 echo  Close this window to shut down.
 echo.
 
-python -m streamlit run behaviors\claude-tokenized\claude_tokenized.py --server.headless true --browser.gatherUsageStats false
+REM Start Streamlit in background, wait for it, then open browser
+start /b "" python -m streamlit run behaviors\claude-tokenized\claude_tokenized.py --server.headless true --browser.gatherUsageStats false --server.port 8501
 
+echo  Waiting for server to start...
+:WAIT_LOOP
+timeout /t 1 /nobreak >nul
+curl -s --max-time 1 http://localhost:8501/_stcore/health >nul 2>&1
+if errorlevel 1 goto WAIT_LOOP
+
+echo  Server ready. Opening browser...
+start "" http://localhost:8501
 echo.
-echo  Claude Tokenized has stopped.
-pause
+echo  Claude Tokenized is running at http://localhost:8501
+echo  Press any key to shut down.
+pause >nul
