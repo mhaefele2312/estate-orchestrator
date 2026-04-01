@@ -29,6 +29,6 @@
   "_notes": {
     "min_score":  "Presidio confidence threshold. Lower = more detections but more false positives. 0.6 is a good starting point.",
     "pii_types":  "Presidio entity types to detect and tokenize. AMOUNT is handled via custom regex, not Presidio.",
-    "supported_extensions": "Only these file types are processed. PDFs require a separate OCR step (Phase 5)."
+    "supported_extensions": "Only these file types are processed. PDFs: pdfplumber extracts text from digital PDFs; easyocr handles scanned PDFs (requires easyocr + pypdfium2 packages — install if needed)."
   }
 }
