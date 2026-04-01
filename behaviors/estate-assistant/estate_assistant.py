@@ -260,6 +260,10 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
         if bronze_docs:
             st.markdown(f"📁 Bronze — {len(bronze_docs)} doc{'s' if len(bronze_docs) != 1 else ''}")
         st.markdown(f"🔑 {len(engine.registry)} tokens in registry")
+        if engine.has_vector_index:
+            st.markdown("🧠 Vector index active (hybrid search)")
+        else:
+            st.markdown("🔍 Keyword search only")
         st.divider()
 
         # Vault scope selector — applies to both Search and Ask tabs
