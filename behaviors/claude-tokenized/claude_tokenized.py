@@ -355,7 +355,7 @@ def render_sidebar(engine, is_test: bool, ollama: dict,
 
         # Cloud providers
         from cloud_client import PROVIDER_MODELS
-        for name in ("Gemini", "Claude"):
+        for name in ("Gemini", "Claude", "ChatGPT"):
             info = cloud.get(name, {})
             if info.get("available"):
                 provider_options.append(f"Cloud ({name})")
@@ -390,9 +390,11 @@ def render_sidebar(engine, is_test: bool, ollama: dict,
                 label_visibility="collapsed",
             )
 
-        elif chosen_key in ("gemini", "claude"):
+        elif chosen_key in ("gemini", "claude", "chatgpt"):
             selected_provider = chosen_key
-            pname = chosen_key.title()
+            # Map key back to provider name as used in PROVIDER_MODELS
+            pname_map = {"gemini": "Gemini", "claude": "Claude", "chatgpt": "ChatGPT"}
+            pname = pname_map[chosen_key]
             models = PROVIDER_MODELS.get(pname, [])
             selected_model = st.selectbox(
                 f"{pname} model",
@@ -412,7 +414,7 @@ def render_sidebar(engine, is_test: bool, ollama: dict,
                 st.info(f"Set {reason}")
 
         # Privacy note for cloud
-        if selected_provider in ("gemini", "claude"):
+        if selected_provider in ("gemini", "claude", "chatgpt"):
             st.success(
                 "Cloud mode is safe.  \n"
                 "Only tokenized text is sent.  \n"
@@ -505,7 +507,7 @@ def main():
     )
     if provider == "ollama":
         ai_badge = f"<span class='ct-badge ct-badge-ai'>Ollama: {selected_model}</span>"
-    elif provider in ("gemini", "claude"):
+    elif provider in ("gemini", "claude", "chatgpt"):
         ai_badge = f"<span class='ct-badge ct-badge-ai'>Cloud: {selected_model}</span>"
     else:
         ai_badge = "<span class='ct-badge ct-badge-scope'>No AI selected</span>"
@@ -551,7 +553,7 @@ def main():
                 doc = r["doc"]
                 # For cloud LLMs: send TOKENIZED text (safe)
                 # For local Ollama: send detokenized text (stays on machine)
-                if provider in ("gemini", "claude"):
+                if provider in ("gemini", "claude", "chatgpt"):
                     excerpt = doc["text"]  # tokenized version
                     # Extract relevant portion using same logic
                     import re
@@ -586,7 +588,7 @@ def main():
                     response_text = f"Ollama error: {e}"
                     st.error(response_text)
 
-            elif provider in ("gemini", "claude"):
+            elif provider in ("gemini", "claude", "chatgpt"):
                 # ── Cloud LLM (tokenized text sent, response de-tokenized)
                 from cloud_client import cloud_stream
 
@@ -594,8 +596,9 @@ def main():
                     # Stream from cloud — response will contain tokens
                     tokenized_response = st.write_stream(
                         cloud_stream(
-                            provider.title(), selected_model,
-                            context_passages, prompt,
+                            {"gemini": "Gemini", "claude": "Claude",
+                             "chatgpt": "ChatGPT"}[provider],
+                            selected_model, context_passages, prompt,
                         )
                     )
                     # De-tokenize: replace [ACCT_0001] etc. with real values
@@ -650,7 +653,7 @@ def main():
     # ── Footer
     privacy = (
         "Tokenized text only leaves this machine"
-        if provider in ("gemini", "claude")
+        if provider in ("gemini", "claude", "chatgpt")
         else "No internet &bull; No cloud &bull; Documents stay on this machine"
     )
     st.markdown(

@@ -1,8 +1,8 @@
 """
 Estate OS — Cloud LLM Client
 ==============================
-Sends tokenized vault passages to cloud LLMs (Gemini or Claude) and
-returns the response. The cloud LLM only ever sees tokenized text —
+Sends tokenized vault passages to cloud LLMs (Gemini, Claude, or ChatGPT)
+and returns the response. The cloud LLM only ever sees tokenized text —
 real values like SSNs and account numbers are replaced with placeholder
 tokens before leaving this machine.
 
@@ -11,10 +11,12 @@ De-tokenization happens AFTER the response comes back, locally.
 API keys are read from environment variables:
   GEMINI_API_KEY     — for Google Gemini
   ANTHROPIC_API_KEY  — for Anthropic Claude
+  OPENAI_API_KEY     — for OpenAI ChatGPT
 
 SUPPORTED PROVIDERS:
-  "gemini"   — Google Gemini (gemini-2.0-flash or gemini-1.5-pro)
-  "claude"   — Anthropic Claude (claude-sonnet-4-20250514)
+  "Gemini"   — Google Gemini (gemini-2.0-flash or gemini-1.5-pro)
+  "Claude"   — Anthropic Claude (claude-sonnet-4-20250514)
+  "ChatGPT"  — OpenAI (gpt-4o, gpt-4o-mini)
 """
 
 import os
@@ -77,6 +79,19 @@ def available_providers() -> dict:
     else:
         providers["Claude"] = {"available": False,
                                "reason": "ANTHROPIC_API_KEY not set"}
+
+    # ChatGPT
+    openai_key = os.environ.get("OPENAI_API_KEY", "").strip()
+    if openai_key:
+        try:
+            import openai  # noqa: F401
+            providers["ChatGPT"] = {"available": True}
+        except ImportError:
+            providers["ChatGPT"] = {"available": False,
+                                    "reason": "openai package not installed"}
+    else:
+        providers["ChatGPT"] = {"available": False,
+                                "reason": "OPENAI_API_KEY not set"}
 
     return providers
 
@@ -151,16 +166,48 @@ def claude_stream(passages: list, question: str,
             yield text
 
 
+# ── ChatGPT ──────────────────────────────────────────────────────────────────
+
+def chatgpt_stream(passages: list, question: str,
+                   model: str = "gpt-4o") -> Generator:
+    """
+    Send tokenized passages + question to OpenAI ChatGPT and yield chunks.
+    """
+    from openai import OpenAI
+
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+    context = build_context(passages)
+    system = SYSTEM_PROMPT.format(context=context)
+
+    stream = client.chat.completions.create(
+        model=model,
+        max_tokens=2048,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": question},
+        ],
+        stream=True,
+    )
+
+    for chunk in stream:
+        delta = chunk.choices[0].delta
+        if delta.content:
+            yield delta.content
+
+
 # ── Unified interface ────────────────────────────────────────────────────────
 
 PROVIDER_MODELS = {
     "Gemini":  ["gemini-2.0-flash", "gemini-1.5-pro"],
     "Claude":  ["claude-sonnet-4-20250514", "claude-haiku-4-5-20251001"],
+    "ChatGPT": ["gpt-4o", "gpt-4o-mini"],
 }
 
 PROVIDER_LABELS = {
     "Gemini":  "Google Gemini",
     "Claude":  "Anthropic Claude",
+    "ChatGPT": "OpenAI ChatGPT",
 }
 
 
@@ -173,5 +220,7 @@ def cloud_stream(provider: str, model: str,
         yield from gemini_stream(passages, question, model=model)
     elif provider == "Claude":
         yield from claude_stream(passages, question, model=model)
+    elif provider == "ChatGPT":
+        yield from chatgpt_stream(passages, question, model=model)
     else:
         raise ValueError(f"Unknown provider: {provider}")
