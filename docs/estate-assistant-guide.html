@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Estate OS — Document Search &amp; AI Guide</title>
+<style>
+  :root {
+    --gold:      #C9A846;
+    --gold-dark: #9a7d30;
+    --gold-lt:   #f5edd6;
+    --navy:      #1A2744;
+    --navy-lt:   #1e3a5f;
+    --bg:        #F9F7F4;
+    --white:     #FFFFFF;
+    --text:      #1a1a1a;
+    --text-dim:  #6B7280;
+    --border:    #E5E7EB;
+    --green:     #166534;
+    --green-lt:  #DCFCE7;
+    --blue-dark: #1e3a5f;
+    --blue-lt:   #bfdbfe;
+    --code-bg:   #0f2036;
+    --code-text: #93c5fd;
+    --radius:    10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    font-size: 16px;
+  }
+
+  /* ── Nav ── */
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--navy);
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding: 0 2rem;
+    height: 52px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  }
+  nav .brand {
+    font-size: 1.1rem;
+    font-weight: 800;
+    color: var(--gold);
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+  nav a {
+    color: #cbd5e1;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color 0.15s;
+  }
+  nav a:hover { color: var(--gold); }
+  nav .spacer { flex: 1; }
+  nav .badge {
+    background: var(--green);
+    color: var(--green-lt);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, var(--navy) 0%, #0f2036 100%);
+    color: white;
+    padding: 4rem 2rem 3.5rem;
+    text-align: center;
+  }
+  .hero h1 {
+    font-size: 2.6rem;
+    font-weight: 900;
+    color: var(--gold);
+    letter-spacing: -0.5px;
+    margin-bottom: 0.5rem;
+  }
+  .hero p {
+    font-size: 1.15rem;
+    color: #94a3b8;
+    max-width: 560px;
+    margin: 0 auto 2rem;
+  }
+  .hero-badges {
+    display: flex;
+    justify-content: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .hero-badge {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    padding: 0.3rem 0.85rem;
+    border-radius: 999px;
+  }
+
+  /* ── Layout ── */
+  main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 3rem 1.5rem 5rem;
+  }
+
+  /* ── Section headers ── */
+  .section-label {
+    display: inline-block;
+    background: var(--gold-lt);
+    color: var(--gold-dark);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 0.2rem 0.7rem;
+    border-radius: 999px;
+    margin-bottom: 0.6rem;
+  }
+  h2 {
+    font-size: 1.65rem;
+    font-weight: 800;
+    color: var(--navy);
+    margin-bottom: 0.4rem;
+  }
+  h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+  }
+  section { margin-bottom: 3.5rem; }
+  p { margin-bottom: 0.9rem; color: var(--text-dim); }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  .card-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  @media (max-width: 600px) { .card-grid { grid-template-columns: 1fr; } }
+  .card.gold-border { border-left: 4px solid var(--gold); }
+  .card.blue-border { border-left: 4px solid #3b82f6; }
+
+  /* ── Tab mockup ── */
+  .app-mockup {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    margin: 1.5rem 0;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.07);
+  }
+  .mockup-bar {
+    background: var(--navy);
+    padding: 0.65rem 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .mockup-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .mockup-title {
+    color: #94a3b8;
+    font-size: 0.8rem;
+    margin-left: 0.5rem;
+  }
+  .mockup-header {
+    background: white;
+    padding: 1rem 1.5rem 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .mockup-logo {
+    font-size: 1.4rem;
+    font-weight: 900;
+    color: var(--gold);
+    display: inline-block;
+    margin-right: 0.5rem;
+  }
+  .mockup-subtitle {
+    font-size: 0.78rem;
+    color: var(--text-dim);
+    display: block;
+    margin-bottom: 0.75rem;
+  }
+  .tabs-row {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin: 0 -1.5rem;
+    padding: 0 1.5rem;
+  }
+  .tab-pill {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+  .tab-pill.active {
+    color: var(--navy);
+    border-bottom-color: var(--gold);
+  }
+  .mockup-body {
+    padding: 1.25rem 1.5rem;
+    min-height: 120px;
+  }
+  .chat-bubble {
+    display: flex;
+    gap: 0.65rem;
+    margin-bottom: 0.85rem;
+    align-items: flex-start;
+  }
+  .chat-avatar {
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+    font-weight: 700;
+  }
+  .avatar-user { background: var(--navy); color: white; }
+  .avatar-ai   { background: var(--gold-lt); color: var(--gold-dark); }
+  .chat-text {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.85rem;
+    color: var(--text);
+    max-width: 85%;
+  }
+  .chat-text.ai { background: #f0f9ff; border-color: #bae6fd; }
+  .source-mini {
+    border-left: 3px solid var(--gold);
+    padding: 0.4rem 0.7rem;
+    background: #fffbeb;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.78rem;
+    color: #92400e;
+    margin-top: 0.4rem;
+  }
+  .chat-input-mock {
+    background: #f1f5f9;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.55rem 1rem;
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-top: 0.75rem;
+    font-style: italic;
+  }
+
+  /* ── Steps ── */
+  .steps { margin-top: 1.25rem; }
+  .step {
+    display: flex;
+    gap: 1.1rem;
+    margin-bottom: 1.25rem;
+    align-items: flex-start;
+  }
+  .step-num {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    background: var(--gold);
+    color: white;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.1rem;
+  }
+  .step-body h4 { font-size: 1rem; font-weight: 700; color: var(--navy); margin-bottom: 0.2rem; }
+  .step-body p  { font-size: 0.92rem; margin-bottom: 0.3rem; }
+
+  /* ── Code blocks ── */
+  .code-block {
+    background: var(--code-bg);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: 0.75rem 0;
+    overflow-x: auto;
+  }
+  .code-block code {
+    font-family: "Cascadia Code", "Consolas", monospace;
+    font-size: 0.88rem;
+    color: var(--code-text);
+    white-space: pre;
+  }
+  code {
+    background: #e5e7eb;
+    color: var(--navy);
+    padding: 0.15em 0.45em;
+    border-radius: 4px;
+    font-size: 0.88em;
+    font-family: "Consolas", monospace;
+  }
+
+  /* ── Diff/comparison table ── */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-top: 1.25rem;
+  }
+  @media (max-width: 580px) { .compare { grid-template-columns: 1fr; } }
+  .compare-col h4 {
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 0.65rem 1rem;
+    border-radius: var(--radius) var(--radius) 0 0;
+    margin-bottom: 0;
+  }
+  .compare-col.search h4 { background: var(--gold-lt); color: var(--gold-dark); }
+  .compare-col.ask    h4 { background: #dbeafe;        color: #1e40af; }
+  .compare-body {
+    border: 1px solid var(--border);
+    border-top: 0;
+    border-radius: 0 0 var(--radius) var(--radius);
+    padding: 1rem;
+    font-size: 0.9rem;
+  }
+  .compare-body li {
+    margin-bottom: 0.5rem;
+    padding-left: 0.3rem;
+    color: var(--text-dim);
+    list-style: none;
+  }
+  .compare-body li::before { content: "→ "; color: var(--gold-dark); font-weight: 700; }
+  .compare-col.ask .compare-body li::before { color: #1e40af; }
+
+  /* ── Example queries ── */
+  .query-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+  }
+  .query-item {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .query-icon { font-size: 1rem; flex-shrink: 0; }
+  .query-text { color: var(--navy); font-style: italic; }
+  .query-domain {
+    margin-left: auto;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    background: #f3f4f6;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+    display: flex;
+    gap: 0.85rem;
+    align-items: flex-start;
+  }
+  .callout-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 0.05rem; }
+  .callout.info { background: #eff6ff; border: 1px solid #bfdbfe; }
+  .callout.warn { background: #fffbeb; border: 1px solid #fde68a; }
+  .callout.good { background: var(--green-lt); border: 1px solid #86efac; }
+  .callout p { color: var(--text); font-size: 0.92rem; margin: 0; }
+
+  /* ── Troubleshoot accordion ── */
+  details {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 0.65rem;
+    overflow: hidden;
+  }
+  summary {
+    padding: 1rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    color: var(--navy);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+  }
+  summary::after { content: "▸"; margin-left: auto; color: var(--text-dim); font-size: 0.8rem; transition: transform 0.2s; }
+  details[open] summary::after { transform: rotate(90deg); }
+  details[open] summary { border-bottom: 1px solid var(--border); }
+  .details-body { padding: 1rem 1.25rem; font-size: 0.92rem; color: var(--text-dim); }
+  .details-body p { margin-bottom: 0.5rem; }
+  .details-body .code-block { margin: 0.5rem 0; }
+
+  /* ── Sidebar status mockup ── */
+  .sidebar-mockup {
+    background: var(--navy);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    color: white;
+    font-size: 0.85rem;
+    width: 220px;
+  }
+  .sb-section { margin-bottom: 1rem; }
+  .sb-label { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin-bottom: 0.4rem; }
+  .sb-row { display: flex; align-items: center; gap: 0.5rem; padding: 0.3rem 0; font-size: 0.82rem; color: #94a3b8; }
+  .sb-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .sb-dot.green { background: #4ade80; }
+  .sb-dot.gray  { background: #475569; }
+  .sb-dot.gold  { background: var(--gold); }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--navy);
+    color: #64748b;
+    text-align: center;
+    padding: 1.5rem;
+    font-size: 0.82rem;
+    margin-top: 4rem;
+  }
+  footer span { color: var(--gold); font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- ── Navigation ── -->
+<nav>
+  <div class="brand">🏛 Estate OS</div>
+  <a href="#overview">Overview</a>
+  <a href="#search">Search Tab</a>
+  <a href="#ask">Ask Tab</a>
+  <a href="#setup">Ollama Setup</a>
+  <a href="#examples">Examples</a>
+  <a href="#troubleshoot">Troubleshoot</a>
+  <div class="spacer"></div>
+  <div class="badge">🔒 Local Only</div>
+</nav>
+
+<!-- ── Hero ── -->
+<div class="hero">
+  <h1>Document Search &amp; AI Q&amp;A</h1>
+  <p>Two ways to find anything in your private estate vault — keyword search and AI-powered answers. Everything stays on this machine.</p>
+  <div class="hero-badges">
+    <span class="hero-badge">🔍 Keyword Search</span>
+    <span class="hero-badge">🤖 Local AI with Ollama</span>
+    <span class="hero-badge">🔒 No internet required</span>
+    <span class="hero-badge">🏛 Gold + Silver vaults</span>
+  </div>
+</div>
+
+<main>
+
+  <!-- ── Overview ── -->
+  <section id="overview">
+    <div class="section-label">Overview</div>
+    <h2>Two tabs, one purpose</h2>
+    <p>The Estate OS document assistant gives you two ways to find information in your private vault. Both run entirely on this machine — no internet, no cloud AI, no data ever leaves.</p>
+
+    <div class="compare">
+      <div class="compare-col search">
+        <h4>🔍 Search Documents</h4>
+        <div class="compare-body">
+          <ul>
+            <li>Keyword matching across all vault docs</li>
+            <li>Returns matching passages with exact text highlighted</li>
+            <li>All sensitive values restored from your private token registry</li>
+            <li>Works even when Ollama is not installed</li>
+            <li>Best for: "show me everything about Vanguard"</li>
+          </ul>
+        </div>
+      </div>
+      <div class="compare-col ask">
+        <h4>🤖 Ask with AI</h4>
+        <div class="compare-body">
+          <ul>
+            <li>Natural language questions in plain English</li>
+            <li>Local AI synthesizes a direct answer from your documents</li>
+            <li>Shows which documents it used as sources</li>
+            <li>Requires Ollama to be installed (one-time setup)</li>
+            <li>Best for: "do I have flood insurance on the Mule property?"</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- App mockup -->
+    <div class="app-mockup" style="margin-top:2rem;">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f57"></div>
+        <div class="mockup-dot" style="background:#febc2e"></div>
+        <div class="mockup-dot" style="background:#28c840"></div>
+        <span class="mockup-title">Estate OS — localhost:8501</span>
+      </div>
+      <div class="mockup-header">
+        <span class="mockup-logo">Estate OS</span>
+        <span style="font-size:0.9rem;color:#6B7280">Document Search + AI Q&amp;A</span>
+        <span style="display:inline-block;background:#166534;color:#DCFCE7;font-size:0.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.15rem .5rem;border-radius:999px;margin-left:.5rem;vertical-align:middle">🔒 Local</span>
+        <span style="display:inline-block;background:#1e3a5f;color:#bfdbfe;font-size:0.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.15rem .5rem;border-radius:999px;margin-left:.3rem;vertical-align:middle">🤖 AI Ready</span>
+        <div class="tabs-row" style="margin-top:.5rem">
+          <div class="tab-pill active">🔍 Search Documents</div>
+          <div class="tab-pill">🤖 Ask with AI ✓</div>
+        </div>
+      </div>
+      <div class="mockup-body">
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">OS</div>
+          <div class="chat-text ai">Hello. I can search your vault documents and show you matching passages with all sensitive values restored from your private token registry.</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">routing number First National Bank</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">OS</div>
+          <div class="chat-text ai">
+            Found <strong>2 matching documents</strong> in your vault.
+            <div class="source-mini">📄 2024-checking-account.md · Gold / 01_Financial<br><em>"Routing number: 021000021 · Account: 8834920..."</em></div>
+          </div>
+        </div>
+        <div class="chat-input-mock">Search your vault documents...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Search Tab ── -->
+  <section id="search">
+    <div class="section-label">Search Tab</div>
+    <h2>🔍 Search Documents</h2>
+    <p>Type any keyword — an institution name, document type, person, year, or topic — and the search engine scans your entire tokenized vault. Sensitive values like account numbers and SSNs are automatically restored from the local token registry so you see real information, not placeholder codes.</p>
+
+    <div class="callout info">
+      <div class="callout-icon">ℹ️</div>
+      <p><strong>No Ollama needed.</strong> The Search tab works on its own, completely offline. You can use it right now without any setup.</p>
+    </div>
+
+    <h3 style="margin-top:1.5rem">How it works</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Type your search term</h4>
+          <p>Use specific keywords. Institution names, document types, dates, and domain terms all work well. No need for perfect spelling.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>The engine scans your vault</h4>
+          <p>It searches through every document in your Token Store — tokenized copies of your Gold and Silver vault files. The search is instant because everything is already loaded in memory.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Results show the real text</h4>
+          <p>Every match shows a passage from the document with the original values restored — your actual account number, your real policy number, not the <code>[ACCT_0001]</code> placeholder. This de-tokenization happens only in memory and is never written back to disk.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:1.5rem">Good search queries</h3>
+    <div class="query-list">
+      <div class="query-item"><span class="query-icon">🏦</span><span class="query-text">"routing number First National"</span><span class="query-domain">01_Financial</span></div>
+      <div class="query-item"><span class="query-icon">📋</span><span class="query-text">"2022 federal tax return"</span><span class="query-domain">06_Tax</span></div>
+      <div class="query-item"><span class="query-icon">🏠</span><span class="query-text">"flood insurance Mule property"</span><span class="query-domain">04_Insurance</span></div>
+      <div class="query-item"><span class="query-icon">📈</span><span class="query-text">"Vanguard account"</span><span class="query-domain">01_Financial</span></div>
+      <div class="query-item"><span class="query-icon">📄</span><span class="query-text">"trust beneficiary"</span><span class="query-domain">07_Estate-Planning</span></div>
+      <div class="query-item"><span class="query-icon">🚗</span><span class="query-text">"vehicle title VIN"</span><span class="query-domain">08_Vehicles</span></div>
+    </div>
+
+    <div class="callout warn" style="margin-top:1.5rem">
+      <div class="callout-icon">💡</div>
+      <p><strong>Tip:</strong> If you get too many results, add more specific terms. If you get zero results, the document may not have been tokenized yet — run <code>vault_tokenizer.py --vault gold --confirm</code> on the estate laptop to index new files.</p>
+    </div>
+  </section>
+
+  <!-- ── Ask Tab ── -->
+  <section id="ask">
+    <div class="section-label">Ask Tab</div>
+    <h2>🤖 Ask with AI</h2>
+    <p>Ask questions in plain English and get a synthesized answer drawn directly from your vault documents. The AI finds the most relevant passages, reads them, and composes a direct response — citing which document it used.</p>
+
+    <div class="callout good">
+      <div class="callout-icon">🔒</div>
+      <p><strong>Completely private.</strong> The AI model (Ollama) runs entirely on this machine. Your documents are never sent to any server. There is no internet connection of any kind.</p>
+    </div>
+
+    <h3 style="margin-top:1.5rem">How it works</h3>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>You type a question</h4>
+          <p>Ask in plain English. Be specific about what you're looking for — property name, institution, person, or document type helps narrow results.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Vault is searched for relevant passages</h4>
+          <p>The keyword engine finds the 5 most relevant documents. The passages (with PII tokens, not real values) are assembled into context for the AI.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Ollama reads the passages and answers</h4>
+          <p>The local AI model is given your question plus the vault passages. It writes a direct answer, naming which document it drew from. It is instructed to say "I don't see that in your vault" if the answer isn't in the documents.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>Answer + source documents shown</h4>
+          <p>The answer streams in as it's generated. Click "Sources" below the answer to see the actual vault passages the AI used, with real values restored from the registry.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ask tab mockup -->
+    <div class="app-mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f57"></div>
+        <div class="mockup-dot" style="background:#febc2e"></div>
+        <div class="mockup-dot" style="background:#28c840"></div>
+        <span class="mockup-title">Ask with AI tab</span>
+      </div>
+      <div class="mockup-header">
+        <div class="tabs-row">
+          <div class="tab-pill">🔍 Search Documents</div>
+          <div class="tab-pill active">🤖 Ask with AI ✓</div>
+        </div>
+      </div>
+      <div class="mockup-body">
+        <p style="font-size:0.75rem;color:#6B7280;margin-bottom:0.75rem">Using: <strong>mistral</strong> — answers from vault documents only</p>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">Do I have flood insurance on the Mule property?</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">AI</div>
+          <div class="chat-text ai">
+            Yes. According to <strong>mule-property-insurance.md</strong> (Gold / 04_Insurance), your Mule property has flood insurance through Nationwide with policy number 447-FL-2023. Coverage is $250,000 for the structure and $100,000 for contents. The policy renews annually on March 15.
+            <div class="source-mini">▸ Sources (3 documents searched) — click to expand</div>
+          </div>
+        </div>
+        <div class="chat-input-mock">Ask about your estate...</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:1.75rem">Good questions to ask</h3>
+    <div class="query-list">
+      <div class="query-item"><span class="query-icon">🌊</span><span class="query-text">"Do I have flood insurance on the Mule property?"</span><span class="query-domain">Insurance</span></div>
+      <div class="query-item"><span class="query-icon">👥</span><span class="query-text">"Who are the beneficiaries on my life insurance?"</span><span class="query-domain">Estate Planning</span></div>
+      <div class="query-item"><span class="query-icon">🏦</span><span class="query-text">"What bank accounts do I have and where?"</span><span class="query-domain">Financial</span></div>
+      <div class="query-item"><span class="query-icon">📅</span><span class="query-text">"When does my homeowners insurance renew?"</span><span class="query-domain">Insurance</span></div>
+      <div class="query-item"><span class="query-icon">⚖️</span><span class="query-text">"What does my will say about the 2312 property?"</span><span class="query-domain">Estate Planning</span></div>
+      <div class="query-item"><span class="query-icon">💊</span><span class="query-text">"What medications am I currently taking?"</span><span class="query-domain">Medical</span></div>
+      <div class="query-item"><span class="query-icon">🚗</span><span class="query-text">"What vehicles do I own and who owns the titles?"</span><span class="query-domain">Vehicles</span></div>
+      <div class="query-item"><span class="query-icon">📊</span><span class="query-text">"Summarize my investment accounts"</span><span class="query-domain">Financial</span></div>
+    </div>
+  </section>
+
+  <!-- ── Ollama Setup ── -->
+  <section id="setup">
+    <div class="section-label">Setup</div>
+    <h2>Setting Up Ollama (one time)</h2>
+    <p>Ollama is a free app that runs an AI model locally on your computer. You only need to set this up once. After that, it starts automatically whenever you launch Estate OS.</p>
+
+    <div class="callout info">
+      <div class="callout-icon">⏱</div>
+      <p>Setup takes about 5–10 minutes, mostly waiting for a model to download (~4 GB). You only do this once.</p>
+    </div>
+
+    <div class="steps" style="margin-top:1.5rem">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h4>Download and install Ollama</h4>
+          <p>Open a browser, go to <strong>ollama.com/download</strong>, and download the Windows installer. Run it — it installs like any normal app and starts automatically.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h4>Open a terminal and pull a model</h4>
+          <p>Press <code>Win + R</code>, type <code>cmd</code>, press Enter. Then run:</p>
+          <div class="code-block"><code>ollama pull mistral</code></div>
+          <p>This downloads the Mistral model (about 4 GB). It may take a few minutes depending on your connection. You only need to do this once.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h4>Launch Estate OS</h4>
+          <p>Double-click the <strong>Estate OS</strong> shortcut on your desktop. The batch file will check if Ollama is running and start it automatically if needed. The Ask tab will show <strong>Ollama running</strong> with the model name.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h4>That's it</h4>
+          <p>Going forward, launching Estate OS via the desktop shortcut handles everything. Ollama starts in the background, the model is ready, and the Ask tab activates automatically.</p>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:2rem">Choosing a model</h3>
+    <p>Mistral is the recommended starting model — fast enough on most hardware and accurate for estate document Q&amp;A. If you want to try alternatives:</p>
+
+    <div class="card-grid" style="margin-top:0.75rem">
+      <div class="card gold-border">
+        <h4>mistral <span style="font-size:0.75rem;color:#6B7280;font-weight:400">(recommended)</span></h4>
+        <p style="font-size:0.88rem">~4 GB. Best balance of speed and quality for factual document Q&amp;A. Works well on the estate laptop.</p>
+        <div class="code-block" style="margin-top:0.5rem"><code>ollama pull mistral</code></div>
+      </div>
+      <div class="card">
+        <h4>llama3</h4>
+        <p style="font-size:0.88rem">~4.7 GB. Slightly more thorough answers but slower. Good on faster hardware.</p>
+        <div class="code-block" style="margin-top:0.5rem"><code>ollama pull llama3</code></div>
+      </div>
+      <div class="card">
+        <h4>gemma</h4>
+        <p style="font-size:0.88rem">~5 GB. Google's model. Comparable quality to Mistral.</p>
+        <div class="code-block" style="margin-top:0.5rem"><code>ollama pull gemma</code></div>
+      </div>
+      <div class="card">
+        <h4>phi3</h4>
+        <p style="font-size:0.88rem">~2.3 GB. Microsoft's smallest model. Fastest, but less thorough on complex documents.</p>
+        <div class="code-block" style="margin-top:0.5rem"><code>ollama pull phi3</code></div>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem">You can switch models in the sidebar dropdown any time. Estate OS auto-selects the best installed model (Mistral first, then Llama 3, then others) but you can override it.</p>
+
+    <h3 style="margin-top:2rem">What's in the sidebar</h3>
+    <div style="display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap;margin-top:0.75rem">
+      <div class="sidebar-mockup">
+        <div class="sb-section">
+          <div class="sb-label">Vault</div>
+          <div class="sb-row"><div class="sb-dot green"></div>Live vault connected</div>
+          <div class="sb-row">🔒 Running locally</div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-label">Contents</div>
+          <div class="sb-row"><div class="sb-dot gold"></div>Gold — 47 docs</div>
+          <div class="sb-row"><div class="sb-dot gray"></div>Silver — 23 docs</div>
+          <div class="sb-row">🔑 312 tokens</div>
+        </div>
+        <div class="sb-section">
+          <div class="sb-label">AI Status</div>
+          <div class="sb-row"><div class="sb-dot green"></div>Ollama running</div>
+          <div class="sb-row" style="font-size:0.78rem;padding-left:1.2rem;color:#C9A846">▸ mistral ▾</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:240px">
+        <div class="card" style="margin-bottom:0.75rem">
+          <strong>Vault contents</strong><br>
+          <span style="font-size:0.88rem;color:var(--text-dim)">Shows how many documents are indexed. If this says "not indexed," run the tokenizer to add your vault files.</span>
+        </div>
+        <div class="card" style="margin-bottom:0.75rem">
+          <strong>Token count</strong><br>
+          <span style="font-size:0.88rem;color:var(--text-dim)">Number of sensitive values the registry knows how to restore. Higher = more documents have been tokenized.</span>
+        </div>
+        <div class="card">
+          <strong>Model selector</strong><br>
+          <span style="font-size:0.88rem;color:var(--text-dim)">Switch between installed Ollama models. Estate OS auto-picks the best one, but you can override here.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Examples ── -->
+  <section id="examples">
+    <div class="section-label">Examples</div>
+    <h2>Example Conversations</h2>
+
+    <h3>Search: Finding an account number</h3>
+    <div class="app-mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f57"></div>
+        <div class="mockup-dot" style="background:#febc2e"></div>
+        <div class="mockup-dot" style="background:#28c840"></div>
+      </div>
+      <div class="mockup-body">
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">Chase checking account number</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">OS</div>
+          <div class="chat-text ai">
+            Found <strong>1 matching document</strong> in your vault.
+            <div class="source-mini">📄 chase-checking-2024.md · Gold / 01_Financial<br><em>"Account: 4820938274  Routing: 021000021  Branch: Manhattan West"</em></div>
+          </div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">what is the routing number for wire transfers</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">OS</div>
+          <div class="chat-text ai">
+            Found <strong>2 matching documents</strong> in your vault.
+            <div class="source-mini">📄 chase-checking-2024.md · Gold / 01_Financial<br><em>"Wire transfer routing: 021000021 (domestic)  International: CHASUS33"</em></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:1.75rem">Ask: Insurance question</h3>
+    <div class="app-mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f57"></div>
+        <div class="mockup-dot" style="background:#febc2e"></div>
+        <div class="mockup-dot" style="background:#28c840"></div>
+      </div>
+      <div class="mockup-body">
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">What insurance do I have on the rental property in Texas?</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">AI</div>
+          <div class="chat-text ai">
+            Based on <strong>rental-tx-insurance.md</strong> (Gold / 04_Insurance), your Texas rental property (Rental 1 TX) has:
+            <br><br>
+            • <strong>Homeowners:</strong> State Farm, policy 72-HO-8834, $180,000 dwelling coverage, renews June 1<br>
+            • <strong>Umbrella:</strong> Covered under your main umbrella policy (Erie, UP-44112), $1M additional liability
+            <br><br>
+            No flood insurance is listed for this property. The document notes it is not in a FEMA flood zone.
+            <div class="source-mini">▸ Sources (5 documents searched)</div>
+          </div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">What is the agent's phone number?</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">AI</div>
+          <div class="chat-text ai">
+            From the same document: State Farm agent <strong>David Kowalski</strong> at <strong>(512) 448-2910</strong>, Austin TX office.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:1.75rem">Ask: When the vault doesn't have the answer</h3>
+    <div class="app-mockup">
+      <div class="mockup-bar">
+        <div class="mockup-dot" style="background:#ff5f57"></div>
+        <div class="mockup-dot" style="background:#febc2e"></div>
+        <div class="mockup-dot" style="background:#28c840"></div>
+      </div>
+      <div class="mockup-body">
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-user">M</div>
+          <div class="chat-text">What is the combination to the safe?</div>
+        </div>
+        <div class="chat-bubble">
+          <div class="chat-avatar avatar-ai">AI</div>
+          <div class="chat-text ai">
+            I don't see that in your vault. No document in the indexed files contains a safe combination. If this information exists in an un-indexed document, run the tokenizer to add it, then try again.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Troubleshooting ── -->
+  <section id="troubleshoot">
+    <div class="section-label">Troubleshooting</div>
+    <h2>Common Issues</h2>
+
+    <details>
+      <summary>🔴 "Token Store not found" error on launch</summary>
+      <div class="details-body">
+        <p>The app can't find the tokenized vault documents. This means either:</p>
+        <p><strong>1. The tokenizer hasn't been run yet.</strong> On the estate laptop, open a terminal and run:</p>
+        <div class="code-block"><code>cd C:\Users\mhhro\estate-orchestrator
+python behaviors\vault-tokenizer\vault_tokenizer.py --vault gold --confirm</code></div>
+        <p><strong>2. The token store path is wrong in config.</strong> Check <code>config\vault_config.json</code> and verify the <code>token_store</code> path exists on this machine.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🟡 Ask tab shows "Ollama not running" even after installing</summary>
+      <div class="details-body">
+        <p>Ollama may not have started automatically after install. Open a terminal and start it manually:</p>
+        <div class="code-block"><code>ollama serve</code></div>
+        <p>Leave that terminal window open, then refresh the Estate OS page in your browser. Alternatively, close and reopen Estate OS using the desktop shortcut — the launch script will start Ollama automatically if it detects it's installed.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🟡 Ask tab shows "No models installed"</summary>
+      <div class="details-body">
+        <p>Ollama is running but no models have been downloaded yet. Open a terminal and run:</p>
+        <div class="code-block"><code>ollama pull mistral</code></div>
+        <p>This takes a few minutes (~4 GB download). Once complete, refresh the Estate OS page.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🟡 Search returns nothing for a term I know is in a document</summary>
+      <div class="details-body">
+        <p>The document may not be in the Token Store yet. The tokenizer only processes vault files that have been added since the last run. Re-run the tokenizer on the estate laptop:</p>
+        <div class="code-block"><code>python behaviors\vault-tokenizer\vault_tokenizer.py --vault gold --confirm</code></div>
+        <p>The tokenizer is safe to re-run — it skips files that haven't changed and only processes new or modified files.</p>
+        <p>Also check that the Cryptomator vault is unlocked (E:\ shows in Windows Explorer) before running the tokenizer.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🟡 AI answer is slow to appear</summary>
+      <div class="details-body">
+        <p>On the estate laptop, response time depends on the model size. Typical speeds:</p>
+        <p>• <strong>phi3</strong> — ~5–10 seconds<br>• <strong>mistral</strong> — ~15–30 seconds<br>• <strong>llama3</strong> — ~20–45 seconds</p>
+        <p>The answer streams in as it's generated, so you'll see text appearing rather than waiting for the whole thing. If it takes more than 2 minutes with no output, the model may have stalled — close and reopen Estate OS.</p>
+        <p>If speed is a persistent issue, switch to <code>phi3</code> in the sidebar — it's the fastest model and still accurate for factual Q&amp;A.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🔴 AI gives an answer that seems wrong</summary>
+      <div class="details-body">
+        <p>The AI is instructed to answer only from vault documents, but it can occasionally misread a passage or confuse similar values across documents. Always:</p>
+        <p>• Click <strong>Sources</strong> below the answer to see the actual vault passages used</p>
+        <p>• Verify the answer against the source document</p>
+        <p>• If the source passage looks wrong, the underlying vault document may be outdated — update it and re-run the tokenizer</p>
+        <p>The AI is a tool for finding information faster — not a replacement for reading the document directly.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>🟡 The Cryptomator vault won't mount</summary>
+      <div class="details-body">
+        <p>The search and ask features require the vault to have been tokenized first. The tokenizer requires the Cryptomator vault to be unlocked at the time it runs. Day-to-day, once the Token Store exists, the Cryptomator vault does NOT need to be unlocked to use Estate OS — you're searching the token store, not the vault directly.</p>
+        <p>To unlock Cryptomator: open the Cryptomator app → click your vault → Unlock → enter the password. E:\ should then appear in Windows Explorer.</p>
+      </div>
+    </details>
+  </section>
+
+</main>
+
+<footer>
+  <span>Estate OS</span> — Private document assistant &nbsp;|&nbsp;
+  No internet &nbsp;|&nbsp; No cloud &nbsp;|&nbsp; No data leaves this machine
+</footer>
+
+</body>
+</html>

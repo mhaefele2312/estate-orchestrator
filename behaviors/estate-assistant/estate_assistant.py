@@ -214,11 +214,24 @@ def get_ollama_status() -> dict:
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
-def render_sidebar(engine, is_test: bool, ollama: dict) -> str:
+# Vault scope options: label → list of vault names to search
+VAULT_SCOPES = {
+    "Gold only":                  ["gold"],
+    "Gold + Silver":              ["gold", "silver"],
+    "Gold + Silver + Bronze":     ["gold", "silver", "bronze"],
+    "Everything (all indexed)":   None,   # None = no filter
+}
+DEFAULT_SCOPE = "Gold + Silver"
+
+
+def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
     """
-    Render the sidebar. Returns the selected Ollama model name (may be "").
+    Render the sidebar.
+    Returns (selected_model: str, vault_scope: list|None).
+    vault_scope is None for "all vaults" or a list like ["gold","silver"].
     """
     selected_model = ollama.get("selected", "")
+    vault_scope    = VAULT_SCOPES[DEFAULT_SCOPE]
 
     with st.sidebar:
         st.markdown("## 🏛 Estate OS")
@@ -233,9 +246,10 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> str:
         st.markdown("**🔒 Running locally**  \nNo internet connection.  \nDocuments stay on this machine.")
         st.divider()
 
-        # Vault stats
+        # Vault contents
         gold_docs   = [d for d in engine.documents if d["vault"] == "gold"]
         silver_docs = [d for d in engine.documents if d["vault"] == "silver"]
+        bronze_docs = [d for d in engine.documents if d["vault"] == "bronze"]
         st.markdown("**Vault contents**")
         st.markdown(
             f"📁 Gold — {len(gold_docs)} doc{'s' if len(gold_docs) != 1 else ''}"
@@ -243,7 +257,20 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> str:
         )
         if silver_docs:
             st.markdown(f"📁 Silver — {len(silver_docs)} doc{'s' if len(silver_docs) != 1 else ''}")
+        if bronze_docs:
+            st.markdown(f"📁 Bronze — {len(bronze_docs)} doc{'s' if len(bronze_docs) != 1 else ''}")
         st.markdown(f"🔑 {len(engine.registry)} tokens in registry")
+        st.divider()
+
+        # Vault scope selector — applies to both Search and Ask tabs
+        st.markdown("**Search scope**")
+        scope_label = st.radio(
+            "Vaults to search",
+            options=list(VAULT_SCOPES.keys()),
+            index=list(VAULT_SCOPES.keys()).index(DEFAULT_SCOPE),
+            label_visibility="collapsed",
+        )
+        vault_scope = VAULT_SCOPES[scope_label]
         st.divider()
 
         # Ollama status
@@ -278,7 +305,7 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> str:
                     del st.session_state[key]
             st.rerun()
 
-    return selected_model
+    return selected_model, vault_scope
 
 
 # ── Search tab helpers ────────────────────────────────────────────────────────
@@ -327,7 +354,7 @@ SEARCH_WELCOME = (
 )
 
 
-def render_search_tab(engine) -> None:
+def render_search_tab(engine, vault_scope: list) -> None:
     if "search_messages" not in st.session_state:
         st.session_state.search_messages = [
             {"role": "assistant", "content": SEARCH_WELCOME}
@@ -344,7 +371,7 @@ def render_search_tab(engine) -> None:
 
         with st.chat_message("assistant"):
             with st.spinner("Searching..."):
-                results  = engine.search(prompt, top_k=3)
+                results  = engine.search(prompt, top_k=3, vaults=vault_scope)
                 response = format_search_results(results)
             st.markdown(response, unsafe_allow_html=True)
 
@@ -385,7 +412,8 @@ ASK_WELCOME = (
 )
 
 
-def render_ask_tab(engine, ollama: dict, selected_model: str) -> None:
+def render_ask_tab(engine, ollama: dict, selected_model: str,
+                   vault_scope: list = None) -> None:
     sys.path.insert(0, str(Path(__file__).parent))
 
     if not ollama["available"]:
@@ -421,9 +449,9 @@ def render_ask_tab(engine, ollama: dict, selected_model: str) -> None:
         with st.chat_message("assistant"):
             from ollama_client import build_prompt, generate_stream, OllamaError
 
-            # Step 1: Find relevant passages
+            # Step 1: Find relevant passages within the selected vault scope
             with st.spinner("Searching vault..."):
-                raw_results = engine.search(prompt, top_k=5)
+                raw_results = engine.search(prompt, top_k=5, vaults=vault_scope)
 
             # Build context passages for the prompt
             context_passages = []
@@ -466,7 +494,7 @@ def main() -> None:
 
     engine = load_engine(str(token_store))
     ollama = get_ollama_status()
-    selected_model = render_sidebar(engine, is_test, ollama)
+    selected_model, vault_scope = render_sidebar(engine, is_test, ollama)
 
     # ── Header ────────────────────────────────────────────────────────────────
     ai_badge = (
@@ -499,10 +527,10 @@ def main() -> None:
     tab1, tab2 = st.tabs(tab_labels)
 
     with tab1:
-        render_search_tab(engine)
+        render_search_tab(engine, vault_scope)
 
     with tab2:
-        render_ask_tab(engine, ollama, selected_model)
+        render_ask_tab(engine, ollama, selected_model, vault_scope)
 
     # ── Footer ────────────────────────────────────────────────────────────────
     disclaimer_ai = (

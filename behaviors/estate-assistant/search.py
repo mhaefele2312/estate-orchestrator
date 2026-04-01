@@ -51,7 +51,7 @@ class EstateSearchEngine:
         De-tokenized text is what gets searched and displayed.
         """
         docs = []
-        for vault in ("gold", "silver"):
+        for vault in ("gold", "silver", "bronze"):
             vault_path = self.token_store_path / vault
             if not vault_path.exists():
                 continue
@@ -91,9 +91,16 @@ class EstateSearchEngine:
         "it", "its", "all", "any", "which", "who", "if", "than",
     }
 
-    def search(self, query: str, top_k: int = 3) -> list:
+    def search(self, query: str, top_k: int = 3,
+               vaults: list = None) -> list:
         """
-        Search all documents for content matching the query.
+        Search documents for content matching the query.
+
+        vaults:  optional list of vault names to restrict the search.
+                 Accepted values: "gold", "silver", "bronze".
+                 None (default) searches all loaded vaults.
+                 Example: vaults=["gold"] searches Gold only.
+                          vaults=["gold","silver"] searches Gold + Silver.
 
         Scoring:
           - Each query keyword that appears in the document raises the score
@@ -111,8 +118,12 @@ class EstateSearchEngine:
         if not query_words:
             return []
 
+        allowed_vaults = set(vaults) if vaults else None
+
         results = []
         for doc in self.documents:
+            if allowed_vaults and doc["vault"] not in allowed_vaults:
+                continue
             text_lower = doc["detokenized"].lower()
             score  = 0
             matched = set()
