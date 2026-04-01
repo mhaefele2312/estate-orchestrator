@@ -15,11 +15,17 @@ from pathlib import Path
 
 import streamlit as st
 
+# ── Icon paths ───────────────────────────────────────────────────────────────
+
+_REPO_ROOT   = Path(__file__).parent.parent.parent
+ROSE_FAVICON = str(_REPO_ROOT / "icons" / "rose-circle-64.png")
+ROSE_AVATAR  = str(_REPO_ROOT / "icons" / "rose-circle-64.png")
+
 # ── Must be first Streamlit call ─────────────────────────────────────────────
 
 st.set_page_config(
     page_title="Claude Tokenized",
-    page_icon=":rose:",
+    page_icon=ROSE_FAVICON,
     layout="wide",
     initial_sidebar_state="expanded",
     menu_items={
@@ -298,7 +304,8 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
     vault_scope    = VAULT_SCOPES[DEFAULT_SCOPE]
 
     with st.sidebar:
-        st.markdown("## :rose: Claude Tokenized")
+        st.image(ROSE_AVATAR, width=40)
+        st.markdown("## Claude Tokenized")
         st.caption("Private AI for your estate vault")
         st.divider()
 
@@ -425,7 +432,7 @@ def main():
     )
     st.markdown(
         f"<div class='ct-header'>"
-        f"<span class='ct-logo'><span class='ct-logo-rose'>&#x1F339;</span> Claude Tokenized</span>"
+        f"<span class='ct-logo'>Claude Tokenized</span>"
         f"<span class='ct-badge ct-badge-local'>Local</span>"
         f"{ai_badge}"
         f"<span class='ct-badge ct-badge-scope'>Scope: {scope_label}</span>"
@@ -440,7 +447,7 @@ def main():
         ]
 
     for msg in st.session_state.messages:
-        avatar = ":rose:" if msg["role"] == "assistant" else None
+        avatar = ROSE_AVATAR if msg["role"] == "assistant" else None
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"], unsafe_allow_html=True)
             # Show sources if stored
@@ -454,7 +461,7 @@ def main():
         with st.chat_message("user"):
             st.markdown(prompt)
 
-        with st.chat_message("assistant", avatar=":rose:"):
+        with st.chat_message("assistant", avatar=ROSE_AVATAR):
             # Step 1: Search vault
             with st.spinner("Searching vault..."):
                 results = engine.search(prompt, top_k=5, vaults=vault_scope)
