@@ -1,0 +1,19 @@
+{
+  "_readme": "Central vault path config. All vault-aware behaviors read this file. Never hardcode vault paths in scripts — always read from here. Bronze vault path is empty until you connect external storage and configure it.",
+
+  "gold_vault":     "X:\\",
+  "silver_vault":   "Y:\\",
+  "bronze_vault":   "",
+
+  "gold_backup":    "G:\\My Drive\\Gold-Backup",
+  "silver_backup":  "G:\\My Drive\\Silver-Backup",
+
+  "token_store":    "C:\\Users\\mhhro\\Documents\\Estate-Token-Store",
+
+  "_test_vaults": {
+    "_note":        "Used by --test mode only. Never used in live runs.",
+    "gold_vault":   "tests/fake-gold-vault",
+    "silver_vault": "tests/fake-silver-vault",
+    "token_store":  "tests/fake-token-store"
+  }
+}

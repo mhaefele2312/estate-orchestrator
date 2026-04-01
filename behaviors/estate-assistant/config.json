@@ -1,0 +1,5 @@
+{
+  "vault_config_path": "../../config/vault_config.json",
+  "top_k_results": 3,
+  "excerpt_lines": 7
+}

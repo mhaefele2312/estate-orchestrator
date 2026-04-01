@@ -1,0 +1,34 @@
+{
+  "_readme": "Config for vault_tokenizer.py. Vault and token store paths come from vault_config.json.",
+
+  "vault_config_path": "../../config/vault_config.json",
+  "log_path":          "../../logs",
+
+  "supported_extensions": [".md", ".txt", ".pdf"],
+
+  "pii_types": [
+    "PERSON",
+    "EMAIL_ADDRESS",
+    "PHONE_NUMBER",
+    "US_SSN",
+    "US_BANK_NUMBER",
+    "US_BANK_ACCOUNT",
+    "US_ROUTING_NUMBER",
+    "CREDIT_CARD",
+    "US_DRIVER_LICENSE",
+    "DATE_TIME",
+    "LOCATION",
+    "US_ITIN",
+    "MEDICAL_LICENSE",
+    "URL",
+    "IP_ADDRESS"
+  ],
+
+  "min_score": 0.6,
+
+  "_notes": {
+    "min_score":  "Presidio confidence threshold. Lower = more detections but more false positives. 0.6 is a good starting point.",
+    "pii_types":  "Presidio entity types to detect and tokenize. AMOUNT is handled via custom regex, not Presidio.",
+    "supported_extensions": "Only these file types are processed. PDFs require a separate OCR step (Phase 5)."
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "_readme": "Config for vault_setup.py. Vault paths come from vault_config.json in config/. Edit that file to change vault locations.",
+
+  "vault_config_path": "../../config/vault_config.json",
+  "log_path":          "../../logs"
+}

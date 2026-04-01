@@ -1,0 +1,13 @@
+{
+  "vault_config_path": "../../config/vault_config.json",
+  "log_path":          "../../logs",
+
+  "supported_extensions": [".md", ".txt", ".pdf"],
+
+  "unsorted_threshold": 0.15,
+
+  "_notes": {
+    "unsorted_threshold": "Confidence score below this routes to 00_Unsorted. Score is the fraction of a domain's keyword list found in the document. 0.15 means 15% of keywords matched.",
+    "supported_extensions": "File types the classifier will read. PDFs are handled with pdfplumber (text layer) or easyocr (scanned)."
+  }
+}
