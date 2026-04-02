@@ -1,0 +1,13 @@
+U.S. Individual Income Tax Return [DATE_0019]
+Taxpayer: [NAME_MHH]
+SSN: [SSN_0002]
+Spouse: [NAME_0011] SSN: [SSN_0001]
+Address: [ADDR_HOME]
+Wages and salaries: [AMOUNT_0016]
+Federal tax withheld: [AMOUNT_0015]
+Refund amount: [AMOUNT_0014]
+Direct deposit routing number: [ROUTING_0001]
+Direct deposit account number: [ACCT_0001]
+Preparer: [NAME_0010] CPA
+Phone: [PHONE_0006]
+Email: [EMAIL_0004]

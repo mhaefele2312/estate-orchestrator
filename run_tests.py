@@ -32,6 +32,17 @@ TESTS = [
     ("Security Scan (imports)",   ROOT / "behaviors" / "staging-intake" / "security_scan.py",   "--test"),
     ("Staging Router (imports)",  ROOT / "behaviors" / "staging-intake" / "staging_router.py",  "--test"),
     ("Weekly Review (imports)",   ROOT / "behaviors" / "email-intake"   / "weekly_review.py",   "--test"),
+    ("Vault Tokenizer",           ROOT / "behaviors" / "vault-tokenizer" / "vault_tokenizer.py", "--test"),
+    ("Vault Indexer",             ROOT / "behaviors" / "vault-indexer"   / "vault_indexer.py",   "--test"),
+    ("Silver Classifier",         ROOT / "behaviors" / "silver-classifier" / "silver_classifier.py", "--test"),
+    ("Silver Review",             ROOT / "behaviors" / "silver-review"    / "silver_review.py",  "--test"),
+    ("Vault Setup",               ROOT / "behaviors" / "vault-setup"     / "vault_setup.py",    "--test"),
+]
+
+# Streamlit apps can't run headless with --test. Import-check them separately.
+IMPORT_CHECKS = [
+    ("Estate Assistant (imports)", "behaviors.estate-assistant.search", "from search import EstateSearchEngine"),
+    ("Claude Tokenized (imports)", "behaviors.claude-tokenized.cloud_client", "import cloud_client"),
 ]
 
 def run_test(name, script_path, flag):
@@ -75,6 +86,20 @@ def main():
 
         passed = run_test(name, script, flag)
         results.append((name, "PASS" if passed else "FAIL"))
+
+    # Streamlit app import checks (can't run headless)
+    for name, module_dir, import_stmt in IMPORT_CHECKS:
+        print()
+        print(f"{'=' * 60}")
+        print(f"  RUNNING: {name}")
+        print(f"{'=' * 60}")
+        module_path = ROOT / module_dir.replace(".", "/")
+        cmd = f"import sys; sys.path.insert(0, r'{module_path.parent}'); {import_stmt}; print('  OK: import successful.')"
+        result = subprocess.run(
+            [sys.executable, "-c", cmd],
+            capture_output=False, text=True,
+        )
+        results.append((name, "PASS" if result.returncode == 0 else "FAIL"))
 
     # Summary
     print()

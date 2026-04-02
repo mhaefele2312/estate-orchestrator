@@ -1,8 +1,8 @@
 # Estate OS — Claude Reference Manual: Volume 2 (Active Development)
 
-**Version:** 2.0
-**Last updated by:** Dev machine session — April 1, 2026
-**Covers through:** Phase 4 complete + Vault Infrastructure + Estate Interview App + Ollama planning
+**Version:** 2.1
+**Last updated by:** Dev machine session — April 2, 2026
+**Covers through:** Phase 5 complete (RAG + PDF OCR + Cloud LLM) + all prior phases
 **Owner:** MHH (mhaefele@gmail.com)
 **Repository:** github.com/mhaefele2312/estate-orchestrator
 
@@ -348,18 +348,24 @@ python behaviors/vault-tokenizer/vault_tokenizer.py --test
     Run against dummy test documents. No real vault required.
 ```
 
+**PDF support:** Fully implemented. Two-step extraction:
+1. **pdfplumber** — extracts text layer from digital PDFs (fast, no ML needed)
+2. **easyocr fallback** — for scanned/image-only PDFs with no text layer. Renders pages via pypdfium2 at 2x scale, runs OCR with GPU=False (CPU-based)
+
+If pdfplumber returns >= 50 characters of text, it's used. Otherwise easyocr kicks in automatically. Never crashes — returns empty string on failure with a warning.
+
 **Rules:**
 - Gold vault is NEVER modified. Only Token Store is written to.
 - Token Registry is append-only. Existing tokens never changed or removed.
 - Re-running is safe: if file unchanged (same SHA-256), it is skipped
-- PDF files are skipped (OCR support planned for Phase 5)
+- Supported file types: `.md`, `.txt`, `.pdf`
 
-**Dependencies:** presidio-analyzer, presidio-anonymizer, spacy (en_core_web_lg model)
+**Dependencies:** presidio-analyzer, presidio-anonymizer, spacy (en_core_web_sm model), pdfplumber, easyocr, pypdfium2, pillow
 
 **Install:**
 ```
-pip install presidio-analyzer presidio-anonymizer spacy
-python -m spacy download en_core_web_lg
+pip install presidio-analyzer presidio-anonymizer spacy pdfplumber easyocr pypdfium2 pillow
+python -m spacy download en_core_web_sm
 ```
 
 ---
@@ -423,6 +429,146 @@ Requires: PyInstaller, Inno Setup 6. Output: `build/output/EstateOS_Setup.exe`
 
 ---
 
+### vault-indexer/vault_indexer.py ✅ BUILT — Phase 5 RAG embedding pipeline
+
+**Purpose:** Reads tokenized documents from the Token Store, chunks them with overlap, generates vector embeddings via Ollama's nomic-embed-text model, and stores them in a LanceDB vector database for semantic search.
+
+**Key files:**
+- `vault_indexer.py` — main indexer script
+
+**How it works:**
+1. Scans Token Store for `.md` and `.txt` files
+2. Chunks each document (~500 words, 50-word overlap for context coherence)
+3. Calls Ollama `/api/embed` endpoint with nomic-embed-text (384-dim vectors)
+4. Stores chunks + embeddings in LanceDB table `vault_chunks`
+5. Tracks file SHA-256 hashes — only re-indexes changed documents
+
+**LanceDB table schema (`vault_chunks`):**
+
+| Column | Type | Purpose |
+|--------|------|---------|
+| vector | float[384] | Embedding from nomic-embed-text |
+| text | string | Chunk text |
+| vault | string | "gold", "silver", "bronze" |
+| domain | string | Folder name (e.g., "06_Tax") |
+| filename | string | Original filename |
+| rel_path | string | Relative path in vault |
+| chunk_idx | int | Chunk number within document |
+| source_key | string | Unique file key for version tracking |
+
+**Index structure:**
+```
+<token_store>/_vector_index/
+├── lance_db/              LanceDB database directory
+├── index_hashes.json      SHA-256 tracking (skip unchanged files)
+└── index_stats.json       Statistics
+```
+
+```
+python behaviors/vault-indexer/vault_indexer.py --vault gold
+    Dry-run. Shows what would be indexed.
+
+python behaviors/vault-indexer/vault_indexer.py --vault gold --confirm
+    Index Gold vault tokenized documents into LanceDB.
+
+python behaviors/vault-indexer/vault_indexer.py --all --confirm
+    Index all vaults (gold + silver + bronze) in one pass.
+
+python behaviors/vault-indexer/vault_indexer.py --stats
+    Show current index statistics without modifying anything.
+
+python behaviors/vault-indexer/vault_indexer.py --test
+    Dry-run against fake-token-store test data.
+```
+
+**Dependencies:** lancedb, ollama (external server, not pip)
+**Requires:** Ollama running locally with nomic-embed-text model installed
+
+---
+
+### estate-assistant/ ✅ BUILT — Phase 5 local-first search + AI Q&A
+
+**Purpose:** Streamlit web app with two tabs — keyword search (no AI needed) and natural-language Q&A (powered by local Ollama). All processing happens locally. No data leaves the machine.
+
+**Key files:**
+- `estate_assistant.py` — main Streamlit app (Search tab + Ask tab)
+- `search.py` — hybrid search engine (keyword + vector via LanceDB)
+- `ollama_client.py` — Ollama streaming wrapper
+- `config.json` — behavior config
+
+**Search tab (works without Ollama):**
+- Keyword search over tokenized documents
+- Vault scope filter (Gold / Silver / Bronze / All)
+- Domain filter (01_Financial through 12_Operations)
+- De-tokenizes results locally — real values visible in search results
+- Source cards with file location and domain
+
+**Ask tab (requires Ollama):**
+- Natural-language questions about vault documents
+- Finds relevant passages via keyword search, sends to Ollama
+- Streams response in real time
+- If Ollama not running: shows setup instructions, Search tab still works
+
+**Ollama model preference order:** mistral > llama3 > llama2 > gemma > phi3 > phi
+
+**Hybrid search engine (search.py):**
+- Keyword search: tokenized text scanning with word frequency + proximity scoring
+- Vector search: LanceDB semantic search via Ollama embeddings (when available)
+- Merging: Reciprocal Rank Fusion (RRF) with k=60 constant
+- Falls back to keyword-only if LanceDB or Ollama unavailable
+
+**Launch:**
+```
+streamlit run behaviors/estate-assistant/estate_assistant.py
+```
+Or double-click: `launch_estate_assistant.bat`
+
+**Dependencies:** streamlit, lancedb (optional, for vector search), ollama (external, optional for Search tab)
+
+---
+
+### claude-tokenized/ ✅ BUILT — Phase 5 cloud LLM vault query interface
+
+**Purpose:** ChatGPT-style Streamlit web app for querying vault documents via cloud LLMs (Gemini, Claude, ChatGPT). Tokenized text is sent to cloud; de-tokenization happens locally. Sensitive values never leave the machine.
+
+**Key files:**
+- `claude_tokenized.py` — main Streamlit app (dark ChatGPT-style UI)
+- `cloud_client.py` — cloud LLM provider integration (functional, not class-based)
+
+**Security model (critical):**
+1. Search engine finds relevant tokenized passages locally
+2. Passages sent to cloud LLM with tokens intact (e.g., `[SSN_0001]`, `[ACCT_0002]`)
+3. Cloud LLM responds using token labels
+4. Response de-tokenized locally before display
+5. Real values NEVER transmitted to any cloud provider
+
+**Supported cloud providers:**
+
+| Provider | Models | Env Var |
+|----------|--------|---------|
+| Gemini | gemini-2.0-flash, gemini-1.5-pro | GEMINI_API_KEY |
+| Claude | claude-sonnet-4-20250514, claude-haiku-4-5-20251001 | ANTHROPIC_API_KEY |
+| ChatGPT | gpt-4o, gpt-4o-mini | OPENAI_API_KEY |
+
+**Features:**
+- Provider and model selector in sidebar
+- Vault scope filter (Gold / Silver / All)
+- Streaming responses
+- Dark themed UI
+- Custom Ruschlikon rose icon
+
+**Launch:**
+```
+streamlit run behaviors/claude-tokenized/claude_tokenized.py
+```
+Or double-click: `launch_claude_tokenized.bat` (runs on port 8502)
+
+**Dependencies:** streamlit, google-genai (Gemini), anthropic (Claude), openai (ChatGPT)
+
+**Note:** Only one API key is needed — whichever provider you want to use. All three are optional.
+
+---
+
 ### setup_check.py ✅ BUILT — run before first use on any machine
 
 **Purpose:** Verifies all dependencies, paths, credentials, and config are correct before running the pipeline.
@@ -457,6 +603,18 @@ Run Sunday evening or Monday morning.
 python behaviors\silver-classifier\silver_classifier.py --source "%1" --confirm
 ```
 Pass a staging folder path as argument. Used for legacy document intake sessions.
+
+### launch_estate_assistant.bat ✅ BUILT
+Starts Ollama in background (if installed), launches Streamlit Estate Assistant on default port.
+Double-click to open search + AI Q&A interface in browser. Search tab works even without Ollama.
+
+### launch_claude_tokenized.bat ✅ BUILT
+Starts Ollama in background (if installed), launches Claude Tokenized Streamlit app on port 8502.
+Double-click to open cloud LLM query interface. Requires at least one API key (Gemini, Claude, or ChatGPT).
+
+### launch_estate_interview.bat ✅ BUILT
+Checks Python, auto-installs missing packages (customtkinter, reportlab, edge-tts), launches the desktop interview app.
+Double-click to start guided estate interview. Fully offline.
 
 ---
 
@@ -589,20 +747,31 @@ Scripts: vault_setup.py, silver_classifier.py, silver_review.py
 Status: vault_setup.py creates Silver structure. silver_classifier.py for legacy intake.
 Order: vault_setup.py first (creates Y:\ structure), then silver_classifier.py as needed.
 
-### Phase 5: Local LLM + RAG 🔄 IN PROGRESS
+### Phase 5: Local LLM + RAG ✅ BUILT — deploy and test on estate laptop
 
-**Revised plan:** Build Ollama on estate laptop first (not mini PC). This is slower but gets the system working without waiting for hardware.
+**Full pipeline is operational on dev machine.** All components built and tested.
 
 **What's built:**
-- vault_tokenizer.py ✅ — full Presidio PII tokenization pipeline
-- Token Store structure defined ✅
+- vault_tokenizer.py ✅ — Presidio PII tokenization + PDF OCR (pdfplumber + easyocr)
+- vault_indexer.py ✅ — document chunking + LanceDB vector embeddings via Ollama
+- estate_assistant/ ✅ — Streamlit local search + Ollama Q&A (Search tab works without Ollama)
+- claude_tokenized/ ✅ — Streamlit cloud LLM interface (Gemini, Claude, ChatGPT) with tokenization boundary
+- Token Store structure ✅ — mirrors vault layout with _registry and _vector_index
+- Launch batch files ✅ — double-click launchers for both apps
 
-**What still needs to be built:**
-- Ollama install + model selection on estate laptop
-- PDF OCR step (Tesseract or Ollama vision) before tokenization
-- RAG layer: LanceDB vector store + LlamaIndex orchestration
-- Query interface (CLI or simple web UI)
-- Integration test: tokenize Gold doc → embed → query → get answer
+**Full data flow:**
+```
+Vault docs → vault_tokenizer.py (PII → tokens) → Token Store
+Token Store → vault_indexer.py (chunk + embed) → LanceDB
+LanceDB + Search → estate_assistant (local Ollama) OR claude_tokenized (cloud LLM)
+```
+
+**Deployment to estate laptop:**
+- Install Ollama + nomic-embed-text model (for embeddings and local Q&A)
+- Set API keys in .env (GEMINI_API_KEY, ANTHROPIC_API_KEY, OPENAI_API_KEY — whichever providers desired)
+- Run vault_tokenizer.py --vault gold --confirm (tokenize vault docs)
+- Run vault_indexer.py --vault gold --confirm (build vector index)
+- Double-click launch_estate_assistant.bat or launch_claude_tokenized.bat
 
 **Hardware plan (revised):**
 - Phase 5a: Run Ollama on estate laptop (slow but functional)
@@ -660,6 +829,26 @@ Decisions made during build sessions that explain why the code works the way it 
 **Problem:** Google Drive doesn't allow sharing "My Drive" as a single item — each item must be shared individually.
 **Decision:** MHH selected all 16 items in Drive root → Share → add hbs.rosevale.west@gmail.com as Editor in one batch. Then HBS installs Google Drive for Desktop and everything appears under "Shared with me." One step instead of sixteen.
 
+### PDF OCR Strategy: pdfplumber + easyocr Two-Step
+**Problem:** vault_tokenizer.py needed to handle both digital PDFs (with text layers) and scanned PDFs (image-only).
+**Decision:** Two-step approach: (1) pdfplumber extracts text layer first — fast, no ML. (2) If pdfplumber returns < 50 chars, fall back to easyocr for OCR. easyocr chosen over Tesseract because it's pip-installable with no external binary, runs on CPU (GPU=False), and handles varied scan quality well. pypdfium2 renders PDF pages to images for easyocr.
+
+### RAG Architecture: LanceDB + nomic-embed-text
+**Problem:** Phase 5 needed a vector store for semantic search over tokenized vault documents.
+**Decision:** LanceDB chosen over Pinecone/Weaviate/Chroma because: (1) fully local — no cloud service needed, (2) Python-native, pip-installable, (3) embedded (no separate server process), (4) good enough for estate-scale document collections. Embedding model: Ollama's nomic-embed-text (384-dim vectors, free, runs locally). LlamaIndex was considered but dropped in favor of a simpler custom chunker + direct LanceDB writes.
+
+### Cloud LLM Provider Support: Gemini + Claude + ChatGPT
+**Problem:** Local Ollama is slow on laptop hardware. Users may want faster cloud-based answers.
+**Decision:** Support all three major providers (Gemini, Claude, ChatGPT) behind a tokenization boundary. Tokenized text is sent to cloud; de-tokenization happens locally. Each provider is optional — only needs one API key. This gives flexibility without lock-in.
+
+### Two Separate Phase 5 UIs
+**Problem:** Different use cases need different tools — quick local search vs. conversational cloud AI.
+**Decision:** Two apps instead of one: (1) estate-assistant = local-first, Search tab works without any AI, Ask tab uses Ollama. Good for quick lookups and air-gapped use. (2) claude-tokenized = cloud-first with ChatGPT-style conversational interface. Better for complex questions requiring reasoning. Both share the same search engine (search.py) and Token Store.
+
+### Streamlit for Web UI
+**Problem:** Needed a web UI framework for the Phase 5 query interfaces.
+**Decision:** Streamlit over FastAPI+React or Flask. Reason: rapid prototyping, single-file apps, built-in streaming support, zero frontend build step. Both apps are single Python files with < 600 lines each. The trade-off (less customization) is acceptable for an internal tool.
+
 ---
 
 ## 9. KNOWN ISSUES
@@ -669,11 +858,14 @@ Decisions made during build sessions that explain why the code works the way it 
 | gate.py input flushing bug | Partially fixed | Skip stuck items |
 | iOS Safari mic permission denied | Platform limitation, not a bug | Use iOS keyboard dictation |
 | Gold vault path varies by machine | Expected — E:\ on estate laptop, X:\ in dev config | Check vault_config.json before running |
-| vault_tokenizer PDF support missing | Planned for Phase 5 | PDF files skipped with a note |
+| ~~vault_tokenizer PDF support missing~~ | ✅ RESOLVED | pdfplumber + easyocr implemented |
 | silver_classifier confidence scores | Heuristic keyword scoring, not ML | Low confidence goes to 00_Unsorted; override with 1-12 |
 | Apps Script "Page Not Found" on dev machine | Google account/proxy issue on dev machine only | Not a bug; works on real devices |
 | estate-interview customtkinter place() width issue | Fixed | width= must be in constructor, not place() call |
-| Ollama not yet installed | Phase 5 in progress | vault_tokenizer.py works without Ollama |
+| ~~Ollama not yet installed~~ | ✅ RESOLVED | Apps work with or without Ollama; Search tab is Ollama-free |
+| requirements.txt incomplete | Missing Phase 5 deps | All packages installed but not listed in requirements.txt |
+| .env missing on dev machine | Expected | API keys live on estate laptop only |
+| Ollama not yet deployed to estate laptop | Phase 5 deployment pending | estate-assistant Search tab and cloud providers work without it |
 
 ---
 
@@ -694,6 +886,7 @@ python behaviors/vault-tokenizer/vault_tokenizer.py --test
 python behaviors/silver-classifier/silver_classifier.py --test
 python behaviors/silver-review/silver_review.py --test
 python behaviors/vault-setup/vault_setup.py --test
+python behaviors/vault-indexer/vault_indexer.py --test
 ```
 
 ---
@@ -709,15 +902,45 @@ python behaviors/vault-setup/vault_setup.py --test
 | "Gold vault not found" | Update `gold_vault` in config/vault_config.json |
 | "Silver vault not found" | Check Y:\ is mounted in Cryptomator |
 | "presidio not found" | `pip install presidio-analyzer presidio-anonymizer` |
-| "spacy model missing" | `python -m spacy download en_core_web_lg` |
+| "spacy model missing" | `python -m spacy download en_core_web_sm` |
 | "Obsidian not synced" | Run weekly_sync.py manually |
 | "Sheet formula errors" | Column order changed — restore A-R order |
 | Tests fail with gspread error | Expected on dev machine (no credentials) — normal |
 | Estate interview app won't launch | Check customtkinter installed: `pip install customtkinter reportlab` |
+| "lancedb not found" | `pip install lancedb` |
+| "streamlit not found" | `pip install streamlit` |
+| "pdfplumber not found" | `pip install pdfplumber easyocr pypdfium2 pillow` |
+| Estate assistant Search shows no results | Run vault_tokenizer.py + vault_indexer.py first |
+| Claude Tokenized "no providers available" | Set at least one API key in .env (GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY) |
+| Ollama "connection refused" | Install Ollama, run `ollama serve`, pull model: `ollama pull nomic-embed-text` |
 
 ---
 
-## 12. SESSION CONTINUITY CHECKLIST
+## 12. DEPENDENCIES — FULL LIST
+
+**requirements.txt is incomplete.** All packages below are installed on the dev machine but not all are in requirements.txt. Install everything with:
+
+```
+pip install gspread google-auth google-auth-oauthlib google-generativeai google-genai
+pip install presidio-analyzer presidio-anonymizer spacy
+pip install pdfplumber easyocr pypdfium2 pillow
+pip install lancedb streamlit customtkinter reportlab
+pip install anthropic openai edge-tts
+python -m spacy download en_core_web_sm
+```
+
+**Optional (only needed for specific features):**
+- `anthropic` — only if using Claude as cloud provider in claude-tokenized
+- `openai` — only if using ChatGPT as cloud provider in claude-tokenized
+- `edge-tts` — only for voice output in estate-interview app
+- `easyocr` — only for scanned PDF OCR (pdfplumber handles digital PDFs alone)
+
+**External (not pip):**
+- **Ollama** — local LLM server. Install from ollama.com. Required for: vault-indexer embeddings, estate-assistant Ask tab. NOT required for: vault-tokenizer, estate-assistant Search tab, claude-tokenized (uses cloud LLMs).
+
+---
+
+## 13. SESSION CONTINUITY CHECKLIST
 
 When starting a new build session:
 
@@ -732,7 +955,7 @@ When starting a new build session:
 
 ---
 
-## 13. CRITICAL BOUNDARIES (FROM V1 — REPEATED FOR EMPHASIS)
+## 14. CRITICAL BOUNDARIES (FROM V1 — REPEATED FOR EMPHASIS)
 
 - **LLM Write:** Only gspread.append_row(). No modifications. No vault writes.
 - **Vault Access:** Cloud LLMs NEVER read or write Obsidian, Gold, Silver, or Bronze vault.

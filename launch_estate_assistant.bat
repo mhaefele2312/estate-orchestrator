@@ -1,10 +1,10 @@
 @echo off
-title Estate OS — Document Search + AI
+title Estate Local LLM — Document Search + AI
 color 1F
 
 echo.
 echo  ============================================
-echo   Estate OS — Document Search + AI Q^&A
+echo   Estate Local LLM — Document Search + AI Q^&A
 echo   Private  ^|  Local  ^|  Secure
 echo  ============================================
 echo.
@@ -27,7 +27,7 @@ if %errorlevel% == 0 (
 )
 
 echo.
-echo  Opening Estate OS in your browser.
+echo  Opening Estate Local LLM in your browser.
 echo  Keep this window open while using the app.
 echo  Close this window to shut down.
 echo.
@@ -35,5 +35,5 @@ echo.
 python -m streamlit run behaviors\estate-assistant\estate_assistant.py --server.headless true --browser.gatherUsageStats false
 
 echo.
-echo  Estate OS has stopped.
+echo  Estate Local LLM has stopped.
 pause

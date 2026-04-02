@@ -1,5 +1,5 @@
 """
-Estate OS — Document Search + AI Assistant
+Estate Local LLM — Document Search + AI Assistant
 ============================================
 Two modes in one interface:
 
@@ -17,7 +17,7 @@ the Search tab continues to work normally.
 
 LAUNCH:
   streamlit run behaviors/estate-assistant/estate_assistant.py
-  Or: double-click the Estate OS shortcut on the desktop.
+  Or: double-click the Estate Local LLM shortcut on the desktop.
 """
 
 import json
@@ -29,7 +29,7 @@ import streamlit as st
 # ── Page config — must be first Streamlit call ────────────────────────────────
 
 st.set_page_config(
-    page_title="Estate OS",
+    page_title="Estate Local LLM",
     page_icon="🏛",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -37,7 +37,7 @@ st.set_page_config(
         "Get help":    None,
         "Report a bug": None,
         "About": (
-            "**Estate OS — Private Document Assistant**\n\n"
+            "**Estate Local LLM — Private Document Assistant**\n\n"
             "Running locally on this machine.\n"
             "No internet connection required.\n"
             "Your documents never leave this computer."
@@ -234,7 +234,7 @@ def render_sidebar(engine, is_test: bool, ollama: dict) -> tuple:
     vault_scope    = VAULT_SCOPES[DEFAULT_SCOPE]
 
     with st.sidebar:
-        st.markdown("## 🏛 Estate OS")
+        st.markdown("## 🏛 Estate Local LLM")
         st.divider()
 
         # Vault status
@@ -508,7 +508,7 @@ def main() -> None:
     )
     st.markdown(
         f"<div class='estate-header'>"
-        f"<span class='estate-title'>Estate OS</span>"
+        f"<span class='estate-title'>Estate Local LLM</span>"
         f"<span class='estate-subtitle'>Document Search + AI Q&amp;A</span>"
         f"<span class='local-badge'>🔒 Local</span>"
         f"{ai_badge}"
@@ -544,7 +544,7 @@ def main() -> None:
     )
     st.markdown(
         f"<div class='disclaimer'>"
-        f"Estate OS &nbsp;|&nbsp; {disclaimer_ai} &nbsp;|&nbsp; "
+        f"Estate Local LLM &nbsp;|&nbsp; {disclaimer_ai} &nbsp;|&nbsp; "
         f"No internet &nbsp;|&nbsp; Real values from local Token Registry only"
         f"</div>",
         unsafe_allow_html=True,

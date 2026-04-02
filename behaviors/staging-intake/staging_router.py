@@ -1,44 +1,49 @@
 """
 Estate OS -- Staging Router (Phase 3)
 =======================================
-Lists files in a sorted staging folder and lets you route each one
-to its final destination: Gold vault, Obsidian, or skip.
+Interactive tool for routing staged files to their final vault destination.
+Run after staging_sorter.py has sorted files into a Staging-Intake subfolder.
 
-Run AFTER security_scan.py and staging_sorter.py.
+DESTINATIONS:
+  g = Gold vault (X:\\)       You personally reviewed, named, and filed this.
+  s = Silver vault (Y:\\)     Legacy content. Goes in as-is, provenance recorded.
+  b = Bronze vault (USB)      Silver overflow. Must be configured and connected.
+  o = Obsidian vault          Working knowledge, not a sensitive original.
+  k = Keep (skip for now)     Leave in staging, decide later.
+  d = Delete-review           Move to _review_delete/ for later cleanup.
 
 USAGE:
-  python staging_router.py --staging <path-to-sorted-staging-folder>
-        Dry-run. Shows what files are waiting and their suggested routes.
+  python staging_router.py --staging <path>
+      Dry-run. Shows files waiting and their counts. No changes.
 
   python staging_router.py --staging <path> --confirm
-        Interactive review. For each file you type:
-          g  -- route to Gold vault (under a domain subfolder)
-          o  -- route to Obsidian vault (under a domain subfolder)
-          s  -- skip (leave in staging, decide later)
-          d  -- mark as junk/duplicate (moves to staging/_review_delete/)
+      Interactive review. Shows each file, you type a destination.
 
   python staging_router.py --test
-        Import check only.
+      Config check. No files needed.
 
 RULES:
   - Default is dry-run. --confirm required for real routing.
-  - Files are COPIED to their destination. Original staging copy kept.
-  - Nothing is deleted without your explicit 'd' choice, and even
-    then it only moves to a _review_delete/ subfolder for later review.
-  - Gold vault: E:\\ (only accessible on estate laptop)
-  - Obsidian vault: path from config.json
-  - Domain subfolders match the 12 Estate OS domains.
-  - Phase 5 will add LLM classification suggestions. For now: manual.
+  - Files are COPIED to destination. Originals in staging are preserved.
+  - Nothing deleted without your 'd' choice. Even then, only moved to
+    _review_delete/ subfolder -- never permanently deleted.
+  - Silver and Bronze routing writes a provenance record automatically.
+  - Bronze requires bronze_vault path set in config/vault_config.json
+    and the drive connected. Script stops clearly if not available.
+  - Gold has no 00_Unsorted -- Gold routing is always deliberate.
 """
 
 import sys
-import os
 import json
 import shutil
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+
+# ── Domain list (matches all vault structures) ────────────────────────────────
 
 DOMAINS = [
+    "00_Unsorted",
     "01_Financial",
     "02_Legal",
     "03_Property",
@@ -53,205 +58,370 @@ DOMAINS = [
     "12_Operations",
 ]
 
-BUCKETS = ["documents", "photos", "video", "spreadsheets", "other"]
+# Gold never gets 00_Unsorted — Gold routing is always a deliberate decision
+GOLD_DOMAINS = DOMAINS[1:]
 
 
-def load_config() -> dict:
-    config_path = Path(__file__).resolve().parent.parent / "ops-ledger" / "config.json"
+# ── Config loading ────────────────────────────────────────────────────────────
+
+def load_vault_config() -> dict:
+    """Load vault paths from the central vault_config.json."""
+    config_path = (
+        Path(__file__).resolve().parent.parent.parent
+        / "config" / "vault_config.json"
+    )
     if not config_path.exists():
-        return {}
+        print(f"ERROR: vault_config.json not found at: {config_path}")
+        sys.exit(1)
     with open(config_path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 
-def collect_staged_files(staging_path: Path) -> list[Path]:
-    """Return all files in the staging folder, excluding _review_delete."""
-    files = []
-    for p in staging_path.rglob("*"):
-        if p.is_file() and "_review_delete" not in str(p):
-            files.append(p)
-    return sorted(files)
+def resolve_destination(dest_key: str, vault_config: dict):
+    """
+    Return Path for a vault destination, or None if not available.
+    Prints a plain-English explanation if unavailable.
+    """
+    if dest_key == "obsidian":
+        return Path(r"C:\Users\mhhro\Documents\Obsidian Vault")
+
+    raw = vault_config.get(f"{dest_key}_vault", "").strip()
+
+    if not raw:
+        if dest_key == "bronze":
+            print()
+            print("  Bronze vault is not configured.")
+            print("  To enable Bronze routing:")
+            print("    1. Connect the BronzeVault USB drive")
+            print("    2. Note its drive letter in Windows Explorer")
+            print("    3. Open config/vault_config.json")
+            print('    4. Set "bronze_vault" to the drive letter, e.g. "D:\\\\"')
+            print("    5. Re-run the router")
+        else:
+            print(f"  ERROR: {dest_key}_vault not set in vault_config.json")
+        return None
+
+    p = Path(raw)
+    if not p.exists():
+        if dest_key == "bronze":
+            print()
+            print(f"  Bronze vault drive not accessible: {p}")
+            print("  Connect the BronzeVault USB drive and try again.")
+        else:
+            print(f"  ERROR: {dest_key} vault path not accessible: {p}")
+        return None
+
+    return p
 
 
-def pick_domain() -> str | None:
-    """Prompt user to pick a domain. Returns domain string or None to go back."""
+# ── File collection ───────────────────────────────────────────────────────────
+
+def collect_files(staging_path: Path) -> list:
+    """Collect all files in staging, excluding _review_delete."""
+    return sorted(
+        p for p in staging_path.rglob("*")
+        if p.is_file() and "_review_delete" not in p.parts
+    )
+
+
+# ── Domain picker ─────────────────────────────────────────────────────────────
+
+def pick_domain(include_unsorted=True):
+    """Prompt for domain selection. Returns domain string or None to cancel."""
+    domain_list = DOMAINS if include_unsorted else GOLD_DOMAINS
     print()
-    for i, d in enumerate(DOMAINS, 1):
+    for i, d in enumerate(domain_list, 1):
         print(f"    {i:2}. {d}")
     print("     0. Cancel (skip this file)")
     print()
-    choice = input("  Domain number: ").strip()
-    if choice == "0" or choice == "":
-        return None
-    try:
-        idx = int(choice) - 1
-        if 0 <= idx < len(DOMAINS):
-            return DOMAINS[idx]
-    except ValueError:
-        pass
-    print("  Invalid choice.")
-    return None
+    while True:
+        raw = input("  Domain number: ").strip()
+        if raw in ("0", ""):
+            return None
+        try:
+            idx = int(raw) - 1
+            if 0 <= idx < len(domain_list):
+                return domain_list[idx]
+        except ValueError:
+            pass
+        print("  Enter a number from the list.")
 
+
+# ── Safe copy ─────────────────────────────────────────────────────────────────
 
 def safe_copy(src: Path, dest_dir: Path) -> Path:
-    """Copy src to dest_dir, adding counter suffix if name conflicts."""
+    """Copy src to dest_dir. Appends counter if filename already exists."""
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / src.name
-    if dest.exists():
-        stem = src.stem
-        suffix = src.suffix
-        counter = 1
-        while dest.exists():
-            dest = dest_dir / f"{stem}_{counter}{suffix}"
-            counter += 1
+    counter = 1
+    while dest.exists():
+        dest = dest_dir / f"{src.stem}_{counter}{src.suffix}"
+        counter += 1
     shutil.copy2(str(src), str(dest))
     return dest
 
 
-def run_dry_run(staging_path: Path) -> None:
-    files = collect_staged_files(staging_path)
+# ── Provenance writer ─────────────────────────────────────────────────────────
+
+def write_provenance(vault_root: Path, record: dict) -> None:
+    """
+    Append one JSON line to the vault's ingestion-log.jsonl.
+    Silently skips if _provenance folder does not exist.
+    """
+    log_path = vault_root / "_provenance" / "ingestion-log.jsonl"
+    if not log_path.parent.exists():
+        return
+    with open(log_path, "a", encoding="utf-8") as f:
+        f.write(json.dumps(record) + "\n")
+
+
+# ── Size label ────────────────────────────────────────────────────────────────
+
+def size_label(p: Path) -> str:
+    try:
+        b = p.stat().st_size
+        if b < 1024:
+            return f"{b}B"
+        if b < 1024 ** 2:
+            return f"{b // 1024}KB"
+        return f"{b // (1024 ** 2)}MB"
+    except Exception:
+        return "?"
+
+
+# ── Dry-run ───────────────────────────────────────────────────────────────────
+
+def run_dry_run(staging_path: Path, vault_config: dict) -> None:
+    files = collect_files(staging_path)
 
     print()
     print("=" * 60)
-    print("  STAGING ROUTER (DRY RUN)")
-    print("=" * 60)
+    print("  STAGING ROUTER — DRY RUN")
     print(f"  Staging: {staging_path}")
+    print("=" * 60)
     print()
 
     if not files:
-        print("  No files waiting for review.")
-        print("=" * 60)
+        print("  No files waiting for routing.")
+        print()
         return
 
-    counts = {}
+    counts: dict = {}
     for f in files:
-        bucket = f.parent.name
+        bucket = f.parent.name if f.parent != staging_path else "root"
         counts[bucket] = counts.get(bucket, 0) + 1
 
-    print(f"  Files awaiting routing: {len(files)}")
-    for bucket, count in counts.items():
-        print(f"    {bucket:<14} {count}")
+    print(f"  Files waiting: {len(files)}")
+    for bucket, n in sorted(counts.items()):
+        print(f"    {bucket:<16} {n}")
+
     print()
-    print("  Run with --confirm to start interactive review.")
-    print("=" * 60)
+    print("  Configured destinations:")
+    for key, label in [
+        ("gold",    "Gold vault   (X:\\)"),
+        ("silver",  "Silver vault (Y:\\)"),
+        ("bronze",  "Bronze vault (USB) "),
+    ]:
+        raw = vault_config.get(f"{key}_vault", "").strip()
+        p = Path(raw) if raw else None
+        if not raw:
+            status = "not configured"
+        elif p and p.exists():
+            status = f"ready — {raw}"
+        else:
+            status = f"NOT accessible — {raw}"
+        print(f"    {label:<26} {status}")
+
+    print()
+    print("  Run with --confirm to start interactive routing.")
+    print()
 
 
-def run_confirm(staging_path: Path, config: dict) -> None:
-    files = collect_staged_files(staging_path)
+# ── Live interactive routing ──────────────────────────────────────────────────
 
-    gold_root = Path(config.get("gold_vault_dir", r"E:\\"))
-    obsidian_root = Path(config.get("obsidian_vault_dir",
-                                    r"C:\Users\mhhro\Documents\Obsidian Vault"))
+def run_confirm(staging_path: Path, vault_config: dict) -> None:
+    files = collect_files(staging_path)
+
+    gold_root     = resolve_destination("gold",     vault_config)
+    silver_root   = resolve_destination("silver",   vault_config)
+    bronze_root   = resolve_destination("bronze",   vault_config)
+    obsidian_root = resolve_destination("obsidian", vault_config)
     review_delete = staging_path / "_review_delete"
 
     print()
     print("=" * 60)
-    print("  STAGING ROUTER (LIVE -- INTERACTIVE REVIEW)")
-    print("=" * 60)
+    print("  STAGING ROUTER — LIVE")
     print(f"  Staging:  {staging_path}")
-    print(f"  Gold:     {gold_root}")
-    print(f"  Obsidian: {obsidian_root}")
+    print()
+    print(f"  Gold:     {gold_root    or 'NOT AVAILABLE'}")
+    print(f"  Silver:   {silver_root  or 'NOT AVAILABLE'}")
+    print(f"  Bronze:   {bronze_root  or 'not configured'}")
+    print(f"  Obsidian: {obsidian_root or 'NOT AVAILABLE'}")
+    print("=" * 60)
     print()
 
     if not files:
-        print("  No files waiting for review.")
-        print("=" * 60)
+        print("  No files waiting for routing.")
         return
 
-    print(f"  {len(files)} file(s) to review. Commands: g=Gold  o=Obsidian  s=Skip  d=Delete-review")
+    print(f"  {len(files)} file(s) to route.")
+    print("  Commands: g=Gold  s=Silver  b=Bronze  o=Obsidian  k=Keep  d=Delete-review")
     print()
 
-    routed_gold = 0
-    routed_obsidian = 0
-    skipped = 0
-    flagged = 0
+    counts = {"gold": 0, "silver": 0, "bronze": 0, "obsidian": 0, "kept": 0, "flagged": 0}
 
     for i, f in enumerate(files, 1):
-        print(f"  [{i}/{len(files)}] {f.parent.name}/{f.name}  ({_size_label(f)})")
-        choice = input("  Route [g/o/s/d]: ").strip().lower()
+        bucket = f.parent.name if f.parent != staging_path else ""
+        label  = f"{bucket}/{f.name}" if bucket else f.name
+        print(f"  [{i}/{len(files)}]  {label}  ({size_label(f)})")
 
-        if choice == "g":
-            domain = pick_domain()
-            if domain is None:
-                print("  Skipped.")
-                skipped += 1
-                continue
-            dest = safe_copy(f, gold_root / domain)
-            print(f"  -> Gold: {dest}")
-            routed_gold += 1
+        while True:
+            choice = input("  Route [g/s/b/o/k/d]: ").strip().lower()
 
-        elif choice == "o":
-            domain = pick_domain()
-            if domain is None:
-                print("  Skipped.")
-                skipped += 1
-                continue
-            dest = safe_copy(f, obsidian_root / domain)
-            print(f"  -> Obsidian: {dest}")
-            routed_obsidian += 1
+            if choice == "g":
+                if not gold_root:
+                    print("  Gold not available. Pick another destination.")
+                    continue
+                domain = pick_domain(include_unsorted=False)
+                if domain is None:
+                    print("  Skipped.")
+                    counts["kept"] += 1
+                    break
+                dest = safe_copy(f, gold_root / domain)
+                print(f"  → Gold/{domain}/{dest.name}")
+                counts["gold"] += 1
+                break
 
-        elif choice == "d":
-            review_delete.mkdir(parents=True, exist_ok=True)
-            dest = review_delete / f.name
-            shutil.move(str(f), str(dest))
-            print(f"  -> Flagged for delete review: {dest}")
-            flagged += 1
+            elif choice == "s":
+                if not silver_root:
+                    print("  Silver not available. Pick another destination.")
+                    continue
+                domain = pick_domain(include_unsorted=True)
+                if domain is None:
+                    print("  Skipped.")
+                    counts["kept"] += 1
+                    break
+                dest = safe_copy(f, silver_root / domain)
+                write_provenance(silver_root, {
+                    "timestamp":     datetime.now().isoformat(),
+                    "original_name": f.name,
+                    "routed_name":   dest.name,
+                    "source_path":   str(f),
+                    "destination":   str(dest),
+                    "vault":         "silver",
+                    "domain":        domain,
+                    "method":        "human_routed",
+                    "confidence":    1.0,
+                })
+                print(f"  → Silver/{domain}/{dest.name}")
+                counts["silver"] += 1
+                break
 
-        else:  # s or anything else
-            print("  Skipped.")
-            skipped += 1
+            elif choice == "b":
+                if not bronze_root:
+                    print("  Bronze not available. Configure it first or pick another.")
+                    continue
+                domain = pick_domain(include_unsorted=True)
+                if domain is None:
+                    print("  Skipped.")
+                    counts["kept"] += 1
+                    break
+                dest = safe_copy(f, bronze_root / domain)
+                write_provenance(bronze_root, {
+                    "timestamp":     datetime.now().isoformat(),
+                    "original_name": f.name,
+                    "routed_name":   dest.name,
+                    "source_path":   str(f),
+                    "destination":   str(dest),
+                    "vault":         "bronze",
+                    "domain":        domain,
+                    "method":        "human_routed",
+                    "confidence":    1.0,
+                })
+                print(f"  → Bronze/{domain}/{dest.name}")
+                counts["bronze"] += 1
+                break
+
+            elif choice == "o":
+                if not obsidian_root:
+                    print("  Obsidian not accessible.")
+                    continue
+                domain = pick_domain(include_unsorted=False)
+                if domain is None:
+                    print("  Skipped.")
+                    counts["kept"] += 1
+                    break
+                dest = safe_copy(f, obsidian_root / domain)
+                print(f"  → Obsidian/{domain}/{dest.name}")
+                counts["obsidian"] += 1
+                break
+
+            elif choice == "k":
+                print("  Kept in staging.")
+                counts["kept"] += 1
+                break
+
+            elif choice == "d":
+                review_delete.mkdir(parents=True, exist_ok=True)
+                dest = review_delete / f.name
+                shutil.move(str(f), str(dest))
+                print(f"  → Delete-review: {dest.name}")
+                counts["flagged"] += 1
+                break
+
+            else:
+                print("  Type one letter: g s b o k d")
 
         print()
 
     print("=" * 60)
     print("  ROUTING COMPLETE")
-    print(f"  Routed to Gold:     {routed_gold}")
-    print(f"  Routed to Obsidian: {routed_obsidian}")
-    print(f"  Skipped:            {skipped}")
-    print(f"  Flagged for delete: {flagged}")
+    print(f"  → Gold:          {counts['gold']}")
+    print(f"  → Silver:        {counts['silver']}")
+    print(f"  → Bronze:        {counts['bronze']}")
+    print(f"  → Obsidian:      {counts['obsidian']}")
+    print(f"  Kept in staging: {counts['kept']}")
+    print(f"  Delete-review:   {counts['flagged']}")
     print("=" * 60)
+    print()
 
 
-def _size_label(p: Path) -> str:
-    """Human-readable file size."""
-    try:
-        size = p.stat().st_size
-        if size < 1024:
-            return f"{size}B"
-        if size < 1024 ** 2:
-            return f"{size // 1024}KB"
-        return f"{size // (1024 ** 2)}MB"
-    except Exception:
-        return "?"
+# ── Test mode ─────────────────────────────────────────────────────────────────
 
-
-def run_import_test() -> bool:
+def run_test() -> None:
     print()
     print("=" * 60)
-    print("  STAGING ROUTER - IMPORT TEST")
+    print("  STAGING ROUTER — TEST")
     print("=" * 60)
-    try:
-        import shutil  # noqa
-        import json    # noqa
-        from pathlib import Path  # noqa
-    except ImportError as e:
-        print(f"  FAIL: {e}")
-        return False
     print()
-    print("  OK: All imports successful (stdlib only).")
+    config = load_vault_config()
+    print("  vault_config.json loaded OK")
     print()
-    print("=" * 60)
-    return True
+    for key, label in [
+        ("gold",   "Gold vault"),
+        ("silver", "Silver vault"),
+        ("bronze", "Bronze vault"),
+    ]:
+        raw = config.get(f"{key}_vault", "").strip()
+        if not raw:
+            print(f"  {label:<16} not configured")
+        else:
+            status = "accessible" if Path(raw).exists() else "NOT accessible"
+            print(f"  {label:<16} {raw}  ({status})")
+    print()
+    print("  Test complete.")
+    print()
 
 
-# -- CLI entry point ----------------------------------------------------------
+# ── Entry point ───────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
-    args = sys.argv[1:]
+    args      = sys.argv[1:]
     arg_lower = [a.lower() for a in args]
 
     if "--test" in arg_lower:
-        sys.exit(0 if run_import_test() else 1)
+        run_test()
+        sys.exit(0)
 
     confirm = "--confirm" in arg_lower
 
@@ -261,7 +431,7 @@ if __name__ == "__main__":
         if idx + 1 < len(args):
             staging_path = Path(args[idx + 1])
         else:
-            print("\nERROR: --staging requires a path.")
+            print("\nERROR: --staging requires a path argument.")
             sys.exit(1)
 
     if not staging_path:
@@ -270,15 +440,16 @@ if __name__ == "__main__":
         print("  python staging_router.py --staging <sorted-staging-folder>")
         print("  python staging_router.py --staging <path> --confirm")
         print("  python staging_router.py --test")
+        print()
         sys.exit(1)
 
     if not staging_path.exists():
         print(f"\nERROR: Staging folder not found: {staging_path}")
         sys.exit(1)
 
-    config = load_config()
+    vault_config = load_vault_config()
 
     if confirm:
-        run_confirm(staging_path, config)
+        run_confirm(staging_path, vault_config)
     else:
-        run_dry_run(staging_path)
+        run_dry_run(staging_path, vault_config)

@@ -1,0 +1,537 @@
+[
+  {
+    "token": "[ACCT_0001]",
+    "original": "4402817733",
+    "type": "ACCT",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743773"
+  },
+  {
+    "token": "[ACCT_0002]",
+    "original": "88823991047",
+    "type": "ACCT",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811756"
+  },
+  {
+    "token": "[ADDR_0001]",
+    "original": "Boston",
+    "type": "ADDR",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404633"
+  },
+  {
+    "token": "[ADDR_0002]",
+    "original": "Esq",
+    "type": "ADDR",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404651"
+  },
+  {
+    "token": "[ADDR_0003]",
+    "original": "Concord",
+    "type": "ADDR",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481155"
+  },
+  {
+    "token": "[ADDR_0004]",
+    "original": "Elm Street",
+    "type": "ADDR",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811748"
+  },
+  {
+    "token": "[ADDR_HOME]",
+    "original": "47 Ridgecrest Lane, Westford MA 01886",
+    "type": "ADDR",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291076",
+    "source": "custom_tokens"
+  },
+  {
+    "token": "[ADDR_TOWN]",
+    "original": "Westford",
+    "type": "ADDR",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291367",
+    "source": "custom_tokens"
+  },
+  {
+    "token": "[AMOUNT_0001]",
+    "original": "$1,847.00",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291005"
+  },
+  {
+    "token": "[AMOUNT_0002]",
+    "original": "$2,400.00",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291023"
+  },
+  {
+    "token": "[AMOUNT_0003]",
+    "original": "$2,000.00",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291032"
+  },
+  {
+    "token": "[AMOUNT_0004]",
+    "original": "$2,104.00",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291039"
+  },
+  {
+    "token": "[AMOUNT_0005]",
+    "original": "$7,808.33",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291047"
+  },
+  {
+    "token": "[AMOUNT_0006]",
+    "original": "$31,887.22",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291054"
+  },
+  {
+    "token": "[AMOUNT_0007]",
+    "original": "$24,310.44",
+    "type": "AMOUNT",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291062"
+  },
+  {
+    "token": "[AMOUNT_0008]",
+    "original": "$2,880.00",
+    "type": "AMOUNT",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481228"
+  },
+  {
+    "token": "[AMOUNT_0009]",
+    "original": "$287,441.00",
+    "type": "AMOUNT",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481239"
+  },
+  {
+    "token": "[AMOUNT_0010]",
+    "original": "$329,600.00",
+    "type": "AMOUNT",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481246"
+  },
+  {
+    "token": "[AMOUNT_0011]",
+    "original": "$412,000.00",
+    "type": "AMOUNT",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481253"
+  },
+  {
+    "token": "[AMOUNT_0012]",
+    "original": "$3,240.00",
+    "type": "AMOUNT",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.547208"
+  },
+  {
+    "token": "[AMOUNT_0013]",
+    "original": "$1,500,000.00",
+    "type": "AMOUNT",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.547217"
+  },
+  {
+    "token": "[AMOUNT_0014]",
+    "original": "$2,841.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743845"
+  },
+  {
+    "token": "[AMOUNT_0015]",
+    "original": "$34,200.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743851"
+  },
+  {
+    "token": "[AMOUNT_0016]",
+    "original": "$187,400.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743856"
+  },
+  {
+    "token": "[AMOUNT_0017]",
+    "original": "$3,412.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811839"
+  },
+  {
+    "token": "[AMOUNT_0018]",
+    "original": "$28,800.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811846"
+  },
+  {
+    "token": "[AMOUNT_0019]",
+    "original": "$4,890.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811852"
+  },
+  {
+    "token": "[AMOUNT_0020]",
+    "original": "$1,240.00",
+    "type": "AMOUNT",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811858"
+  },
+  {
+    "token": "[DATE_0001]",
+    "original": "4532",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290721"
+  },
+  {
+    "token": "[DATE_0002]",
+    "original": "2024-12-22",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290768"
+  },
+  {
+    "token": "[DATE_0003]",
+    "original": "2024-12-15  Elm Street",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290784"
+  },
+  {
+    "token": "[DATE_0004]",
+    "original": "2024-12-10",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290794"
+  },
+  {
+    "token": "[DATE_0005]",
+    "original": "2024-12-05",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290804"
+  },
+  {
+    "token": "[DATE_0006]",
+    "original": "2024-12-03",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290814"
+  },
+  {
+    "token": "[DATE_0007]",
+    "original": "2024-12-01 to 2024-12-31",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290824"
+  },
+  {
+    "token": "[DATE_0008]",
+    "original": "December 2024",
+    "type": "DATE",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290857"
+  },
+  {
+    "token": "[DATE_0009]",
+    "original": "2004-07-28",
+    "type": "DATE",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404666"
+  },
+  {
+    "token": "[DATE_0010]",
+    "original": "2001-03-12",
+    "type": "DATE",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404683"
+  },
+  {
+    "token": "[DATE_0011]",
+    "original": "2023-11-08",
+    "type": "DATE",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404738"
+  },
+  {
+    "token": "[DATE_0012]",
+    "original": "2023",
+    "type": "DATE",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404746"
+  },
+  {
+    "token": "[DATE_0013]",
+    "original": "monthly",
+    "type": "DATE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481022"
+  },
+  {
+    "token": "[DATE_0014]",
+    "original": "annual",
+    "type": "DATE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481106"
+  },
+  {
+    "token": "[DATE_0015]",
+    "original": "2024-12",
+    "type": "DATE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481132"
+  },
+  {
+    "token": "[DATE_0016]",
+    "original": "2018-06-15",
+    "type": "DATE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481141"
+  },
+  {
+    "token": "[DATE_0017]",
+    "original": "2025-03-01",
+    "type": "DATE",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.547085"
+  },
+  {
+    "token": "[DATE_0018]",
+    "original": "1971-09-04",
+    "type": "DATE",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.547143"
+  },
+  {
+    "token": "[DATE_0019]",
+    "original": "2022",
+    "type": "DATE",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743802"
+  },
+  {
+    "token": "[DATE_0020]",
+    "original": "2025-04-12",
+    "type": "DATE",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811782"
+  },
+  {
+    "token": "[EMAIL_0001]",
+    "original": "jwalsh@walshandconnors.com",
+    "type": "EMAIL",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404574"
+  },
+  {
+    "token": "[EMAIL_0002]",
+    "original": "cwhitfield@beaconhome.com",
+    "type": "EMAIL",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481082"
+  },
+  {
+    "token": "[EMAIL_0003]",
+    "original": "tgrady@sentinellife.com",
+    "type": "EMAIL",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.546967"
+  },
+  {
+    "token": "[EMAIL_0004]",
+    "original": "rtillinghast@tillinghastcpa.com",
+    "type": "EMAIL",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743721"
+  },
+  {
+    "token": "[EMAIL_0005]",
+    "original": "areeve@clearwatercpa.com",
+    "type": "EMAIL",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811687"
+  },
+  {
+    "token": "[NAME_0001]",
+    "original": "Martin H. Haefele",
+    "type": "NAME",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290848"
+  },
+  {
+    "token": "[NAME_0002]",
+    "original": "Walsh",
+    "type": "NAME",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404642"
+  },
+  {
+    "token": "[NAME_0003]",
+    "original": "James T. Walsh",
+    "type": "NAME",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404658"
+  },
+  {
+    "token": "[NAME_0004]",
+    "original": "Hannah A. Haefele",
+    "type": "NAME",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404674"
+  },
+  {
+    "token": "[NAME_0005]",
+    "original": "Lawrence E. Haefele",
+    "type": "NAME",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404691"
+  },
+  {
+    "token": "[NAME_0006]",
+    "original": "Barbara S. Haefele",
+    "type": "NAME",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404699"
+  },
+  {
+    "token": "[NAME_0007]",
+    "original": "David Park",
+    "type": "NAME",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481073"
+  },
+  {
+    "token": "[NAME_0008]",
+    "original": "Carol Whitfield",
+    "type": "NAME",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481098"
+  },
+  {
+    "token": "[NAME_0009]",
+    "original": "Thomas Grady",
+    "type": "NAME",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.547075"
+  },
+  {
+    "token": "[NAME_0010]",
+    "original": "Robert Tillinghast",
+    "type": "NAME",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743764"
+  },
+  {
+    "token": "[NAME_0011]",
+    "original": "Helen Haefele\nSpouse",
+    "type": "NAME",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743789"
+  },
+  {
+    "token": "[NAME_0012]",
+    "original": "Alan Reeve",
+    "type": "NAME",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811734"
+  },
+  {
+    "token": "[NAME_MHH]",
+    "original": "Martin Haefele",
+    "type": "NAME",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.291459",
+    "source": "custom_tokens"
+  },
+  {
+    "token": "[PHONE_0001]",
+    "original": "617-700-4400",
+    "type": "PHONE",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404618"
+  },
+  {
+    "token": "[PHONE_0002]",
+    "original": "617-229-0011",
+    "type": "PHONE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481062"
+  },
+  {
+    "token": "[PHONE_0003]",
+    "original": "781-334-9020",
+    "type": "PHONE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481091"
+  },
+  {
+    "token": "[PHONE_0004]",
+    "original": "2024-00441-7",
+    "type": "PHONE",
+    "first_seen": "03_Property\\elm-street-property-summary.md",
+    "created": "2026-03-31T14:57:54.481116"
+  },
+  {
+    "token": "[PHONE_0005]",
+    "original": "617-440-8812",
+    "type": "PHONE",
+    "first_seen": "04_Insurance\\life-insurance-policy.md",
+    "created": "2026-03-31T14:57:54.547059"
+  },
+  {
+    "token": "[PHONE_0006]",
+    "original": "978-440-8812",
+    "type": "PHONE",
+    "first_seen": "06_Tax\\2022-federal-tax-return.pdf",
+    "created": "2026-03-31T14:57:54.743754"
+  },
+  {
+    "token": "[PHONE_0007]",
+    "original": "617-882-4401",
+    "type": "PHONE",
+    "first_seen": "06_Tax\\2024-federal-tax-return.md",
+    "created": "2026-03-31T14:57:54.811724"
+  },
+  {
+    "token": "[ROUTING_0001]",
+    "original": "021000021",
+    "type": "ROUTING",
+    "first_seen": "01_Financial\\first-national-bank-statement-2024-12.md",
+    "created": "2026-03-31T14:57:54.290833"
+  },
+  {
+    "token": "[SSN_0001]",
+    "original": "307-44-8812",
+    "type": "SSN",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404713"
+  },
+  {
+    "token": "[SSN_0002]",
+    "original": "214-77-3901",
+    "type": "SSN",
+    "first_seen": "02_Legal\\trust-amendment-2023.md",
+    "created": "2026-03-31T14:57:54.404725"
+  }
+]

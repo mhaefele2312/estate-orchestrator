@@ -1,0 +1,20 @@
+[
+  {
+    "original": "47 Ridgecrest Lane, Westford MA 01886",
+    "type": "ADDR",
+    "token": "[ADDR_HOME]",
+    "note": "Primary residence — Presidio often misses full addresses"
+  },
+  {
+    "original": "Westford",
+    "type": "ADDR",
+    "token": "[ADDR_TOWN]",
+    "note": "Home town — too short for Presidio to catch reliably"
+  },
+  {
+    "original": "Martin Haefele",
+    "type": "NAME",
+    "token": "[NAME_MHH]",
+    "note": "MHH full name — pin to a readable label across all documents"
+  }
+]

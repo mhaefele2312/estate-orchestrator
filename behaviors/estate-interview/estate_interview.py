@@ -21,7 +21,7 @@ import sys
 import threading
 import tempfile
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkinter import filedialog, messagebox
 import tkinter as tk
 
@@ -75,20 +75,6 @@ FONT_BODY    = ("Segoe UI", 13)
 FONT_LABEL   = ("Segoe UI", 12)
 FONT_LARGE   = ("Segoe UI", 20, "bold")
 FONT_TINY    = ("Segoe UI", 11)
-
-# Essential chapter IDs shown when user picks "Essential only"
-ESSENTIAL_CHAPTERS = {
-    "about_you", "your_family", "key_people",
-    "your_documents", "finances", "property",
-    "digital_life", "your_wishes", "messages",
-}
-
-# Chapter group labels for the selection screen
-CHAPTER_GROUPS = [
-    ("Part One — Your Estate Plan",                   list(range(9))),
-    ("Part One Extended — Complex Estates & Operations", list(range(9, 13))),
-    ("Part Two — Your History",                       list(range(13, 15))),
-]
 
 
 # ── Voice output ───────────────────────────────────────────────────────────────
@@ -222,10 +208,13 @@ class Profile:
                    if ch["id"] in self.enabled_chapters)
 
     def answered_count(self) -> int:
-        enabled_ids = (set(self.enabled_chapters) if self.enabled_chapters
-                       else {q["id"] for ch in CHAPTERS for q in ch["questions"]})
+        if not self.enabled_chapters:
+            return sum(1 for v in self.answers.values() if str(v).strip())
+        enabled_qids = {q["id"] for ch in CHAPTERS
+                        if ch["id"] in self.enabled_chapters
+                        for q in ch["questions"]}
         return sum(1 for qid, v in self.answers.items()
-                   if qid in enabled_ids and str(v).strip())
+                   if qid in enabled_qids and str(v).strip())
 
     def pct(self) -> int:
         t = self.total_q()
@@ -257,7 +246,7 @@ class ChapterButton(ctk.CTkFrame):
         # Row background
         bg = CARD if active else "transparent"
         self.configure(fg_color=bg, corner_radius=6,
-                       border_color=GOLD if active else "transparent", border_width=1 if active else 0)
+                       border_color=GOLD if active else PANEL, border_width=1 if active else 0)
         self.grid_columnconfigure(1, weight=1)
 
         # Status indicator (left column)
@@ -338,15 +327,10 @@ class EstateInterviewApp(ctk.CTk):
         self.muted:              bool  = False
         self._recording:         bool  = False
         self._chapter_buttons:   list  = []
-        self._answer_widget            = None
-        self._input_mode:        str   = "text"
-        self._sel_minutes:       int   = 10
-        self._time_btns:         dict  = {}
-        self._mode_cards:        dict  = {}
-        self._session_end_time         = None
-        self._session_total_secs: float = 0
-        self._timer_id                 = None
-        self._chapter_grid_parent      = None
+        self._form_fields:       dict  = {}    # q_id -> widget in current form
+        self._focused_qid:       str   = ""    # q_id of currently focused field
+        self._voice_flow:        int   = 0     # questions remaining in voice flow batch
+        self._flow_auto_id             = None  # after() id for auto-record delay
 
         self._show_start()
 
@@ -354,9 +338,10 @@ class EstateInterviewApp(ctk.CTk):
 
     def _clear(self):
         stop_speaking()
-        if self._timer_id:
-            self.after_cancel(self._timer_id)
-            self._timer_id = None
+        self._voice_flow = 0
+        if self._flow_auto_id:
+            self.after_cancel(self._flow_auto_id)
+            self._flow_auto_id = None
         for w in self.winfo_children():
             w.destroy()
         for col in range(4):
@@ -490,7 +475,7 @@ class EstateInterviewApp(ctk.CTk):
         name_entry.pack(anchor="w", padx=52, pady=(6, 20))
         name_entry.bind("<Return>", lambda e: self._start_new(name_entry.get()))
 
-        ctk.CTkButton(scroll, text="Begin My Estate Plan  →",
+        ctk.CTkButton(scroll, text="Begin My Estate Plan  ->",
                       font=("Segoe UI Semibold", 15), height=52, width=400,
                       fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
                       command=lambda: self._start_new(name_entry.get())).pack(anchor="w", padx=52, pady=(0, 48))
@@ -557,7 +542,7 @@ class EstateInterviewApp(ctk.CTk):
             ctk.CTkLabel(info,
                          text=f"{p['pct']}% complete  ·  Last updated {p['updated']}",
                          font=FONT_TINY, text_color=TEXT_DIM, anchor="w").pack(anchor="w")
-            ctk.CTkButton(row, text="Continue →", width=130, height=38,
+            ctk.CTkButton(row, text="Continue ->", width=130, height=38,
                           fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
                           font=("Segoe UI Semibold", 13),
                           command=lambda n=p["name"]: self._load_profile(n)).pack(
@@ -581,312 +566,14 @@ class EstateInterviewApp(ctk.CTk):
         # Default: all chapters enabled
         self.profile.enabled_chapters = [ch["id"] for ch in CHAPTERS]
         self.profile.save()
-        self._show_chapter_selection()
+        self._show_interview()
 
     def _load_profile(self, name: str):
         self.profile = Profile(name)
         self._show_interview()
 
     # ─────────────────────────────────────────────────────────────────────────
-    # SCREEN 2 — Chapter Selection
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _show_chapter_selection(self):
-        self._clear()
-        outer = ctk.CTkFrame(self, fg_color=BG)
-        outer.pack(expand=True, fill="both")
-        outer.grid_rowconfigure(1, weight=1)
-        outer.grid_columnconfigure(0, weight=1)
-
-        # Header bar
-        hdr = ctk.CTkFrame(outer, fg_color=PANEL, height=74, corner_radius=0)
-        hdr.grid(row=0, column=0, sticky="ew")
-        hdr.grid_propagate(False)
-        hdr.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(hdr, text="Estate OS", font=("Segoe UI Light", 11),
-                     text_color=GOLD, anchor="w").place(x=36, y=14)
-        ctk.CTkLabel(hdr, text="Choose your sections",
-                     font=("Segoe UI Semibold", 18), text_color=TEXT,
-                     anchor="w").place(x=36, y=36)
-
-        # Sub-header with quick-select buttons
-        sub = ctk.CTkFrame(outer, fg_color="transparent")
-        sub.grid(row=1, column=0, sticky="ew", padx=36, pady=(18, 6))
-        ctk.CTkLabel(sub,
-                     text="Toggle each section on or off. You can change this at any time.",
-                     font=FONT_BODY, text_color=TEXT_DIM).pack(side="left")
-        for label, cmd in [
-            ("All",            lambda: self._quick_select("all")),
-            ("Essential only", lambda: self._quick_select("essential")),
-            ("None",           lambda: self._quick_select("none")),
-        ]:
-            ctk.CTkButton(sub, text=label, width=100 if label == "Essential only" else 56,
-                          height=28, font=FONT_TINY,
-                          fg_color="transparent", hover_color=CARD,
-                          text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                          command=cmd).pack(side="right", padx=(6, 0))
-
-        # Scrollable grid of chapter cards
-        scroll = ctk.CTkScrollableFrame(outer, fg_color="transparent",
-                                         scrollbar_button_color=BORDER)
-        scroll.grid(row=2, column=0, sticky="nsew", padx=28, pady=0)
-        scroll.grid_columnconfigure((0, 1, 2), weight=1)
-        outer.grid_rowconfigure(2, weight=1)
-        self._chapter_grid_parent = scroll
-        self._rebuild_chapter_grid()
-
-        # Footer bar
-        footer = ctk.CTkFrame(outer, fg_color=PANEL, height=70, corner_radius=0)
-        footer.grid(row=3, column=0, sticky="ew")
-        footer.grid_propagate(False)
-        ctk.CTkButton(footer, text="Continue →",
-                      font=("Segoe UI Semibold", 14), height=44, width=200,
-                      fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                      command=self._show_interview).pack(side="right", padx=36, pady=13)
-        ctk.CTkButton(footer, text="← Back to Start",
-                      font=("Segoe UI", 13), height=38, width=150,
-                      fg_color="transparent", hover_color=CARD,
-                      text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                      command=self._show_start).pack(side="left", padx=36, pady=16)
-
-    def _rebuild_chapter_grid(self):
-        parent = self._chapter_grid_parent
-        for w in parent.winfo_children():
-            w.destroy()
-        row_offset = 0
-        for group_label, indices in CHAPTER_GROUPS:
-            # Group label row
-            sep = ctk.CTkFrame(parent, fg_color="transparent")
-            sep.grid(row=row_offset, column=0, columnspan=3,
-                     sticky="ew", padx=8, pady=(16, 6))
-            ctk.CTkLabel(sep, text=group_label.upper(),
-                         font=("Segoe UI Semibold", 9), text_color=TEXT_DIM).pack(side="left")
-            ctk.CTkFrame(sep, fg_color=BORDER, height=1).pack(
-                side="left", fill="x", expand=True, padx=(10, 0))
-            row_offset += 1
-            # Chapter cards — 3 per row
-            for ri, batch_start in enumerate(range(0, len(indices), 3)):
-                batch = indices[batch_start: batch_start + 3]
-                for ci, ch_idx in enumerate(batch):
-                    ch      = CHAPTERS[ch_idx]
-                    enabled = self.profile.is_chapter_enabled(ch["id"])
-                    a, t    = self.profile.chapter_counts(ch_idx)
-                    self._make_chapter_card(parent, ch, ch_idx, enabled, a, t,
-                                            row_offset + ri, ci)
-            row_offset += max(1, -(-len(indices) // 3))
-
-    def _make_chapter_card(self, parent, ch, ch_idx, enabled, a, t, row, col):
-        bg_c  = CARD if enabled else BG
-        bdr_c = GOLD if enabled else BORDER
-        frame = ctk.CTkFrame(parent, fg_color=bg_c, corner_radius=10,
-                              border_color=bdr_c, border_width=1)
-        frame.grid(row=row, column=col, padx=8, pady=6, sticky="nsew")
-        parent.grid_columnconfigure(col, weight=1)
-
-        top = ctk.CTkFrame(frame, fg_color="transparent")
-        top.pack(fill="x", padx=14, pady=(14, 4))
-        ctk.CTkLabel(top, text=f"Ch. {ch_idx + 1}",
-                     font=("Segoe UI", 9),
-                     text_color=GOLD if enabled else BORDER).pack(side="left")
-
-        # Toggle button
-        def make_cmd(cid=ch["id"]):
-            return lambda: self._toggle_chapter(cid)
-
-        if enabled:
-            btn_text, btn_fg, btn_tc, btn_bc = "✓  Included", GREEN, TEXT, GREEN
-        else:
-            btn_text, btn_fg, btn_tc, btn_bc = "○  Skipped", "transparent", TEXT_DIM, BORDER
-
-        ctk.CTkButton(top, text=btn_text, width=94, height=24,
-                      font=("Segoe UI", 9), corner_radius=12,
-                      fg_color=btn_fg, hover_color=GREEN,
-                      text_color=btn_tc, border_color=btn_bc, border_width=1,
-                      command=make_cmd()).pack(side="right")
-
-        ctk.CTkLabel(frame, text=ch["title"],
-                     font=("Segoe UI Semibold", 12),
-                     text_color=TEXT if enabled else TEXT_DIM,
-                     anchor="w", wraplength=230).pack(padx=14, anchor="w")
-        ctk.CTkLabel(frame, text=ch.get("subtitle", ""),
-                     font=FONT_TINY, text_color=TEXT_DIM,
-                     anchor="w").pack(padx=14, anchor="w", pady=(2, 4))
-        note = f"{a}/{t} answered" if a > 0 else f"{t} questions"
-        ctk.CTkLabel(frame, text=note, font=FONT_TINY,
-                     text_color=TEXT_DIM if enabled else BORDER,
-                     anchor="w").pack(padx=14, anchor="w", pady=(0, 14))
-
-    def _toggle_chapter(self, ch_id: str):
-        if ch_id in self.profile.enabled_chapters:
-            self.profile.enabled_chapters.remove(ch_id)
-        else:
-            self.profile.enabled_chapters.append(ch_id)
-        self.profile.save()
-        self._rebuild_chapter_grid()
-
-    def _quick_select(self, mode: str):
-        if mode == "all":
-            self.profile.enabled_chapters = [ch["id"] for ch in CHAPTERS]
-        elif mode == "none":
-            self.profile.enabled_chapters = []
-        elif mode == "essential":
-            self.profile.enabled_chapters = [ch["id"] for ch in CHAPTERS
-                                              if ch["id"] in ESSENTIAL_CHAPTERS]
-        self.profile.save()
-        self._rebuild_chapter_grid()
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # SCREEN 3 — Session Setup
-    # ─────────────────────────────────────────────────────────────────────────
-
-    def _show_session_setup(self):
-        self._clear()
-        outer = ctk.CTkFrame(self, fg_color=BG)
-        outer.pack(expand=True, fill="both")
-        outer.grid_rowconfigure(1, weight=1)
-        outer.grid_rowconfigure(2, weight=0)
-        outer.grid_columnconfigure(0, weight=1)
-
-        first = self.profile.name.split()[0]
-
-        # ── Full-bleed header ──────────────────────────────────────────────────
-        hdr = ctk.CTkFrame(outer, fg_color=PANEL, height=86, corner_radius=0)
-        hdr.grid(row=0, column=0, sticky="ew")
-        hdr.grid_propagate(False)
-        ctk.CTkLabel(hdr, text="Estate OS",
-                     font=("Segoe UI Light", 11), text_color=GOLD,
-                     anchor="w").place(x=52, y=18)
-        ctk.CTkLabel(hdr, text=f"Ready when you are, {first}.",
-                     font=("Segoe UI Semibold", 24), text_color=TEXT,
-                     anchor="w").place(x=52, y=44)
-
-        # ── Content area ──────────────────────────────────────────────────────
-        content = ctk.CTkFrame(outer, fg_color="transparent")
-        content.grid(row=1, column=0, sticky="nsew", padx=52, pady=36)
-        content.grid_columnconfigure(0, weight=1)
-
-        # ─ Time section ───────────────────────────────────────────────────────
-        ctk.CTkLabel(content, text="HOW LONG DO YOU HAVE?",
-                     font=("Segoe UI Semibold", 10), text_color=TEXT_DIM,
-                     anchor="w").grid(row=0, column=0, sticky="w", pady=(0, 10))
-
-        time_row = ctk.CTkFrame(content, fg_color="transparent")
-        time_row.grid(row=1, column=0, sticky="w", pady=(0, 40))
-        self._time_btns   = {}
-        self._sel_minutes = 10
-        for label, mins in [("5 min", 5), ("10 min", 10), ("15 min", 15),
-                             ("20 min", 20), ("30 min", 30), ("No limit", None)]:
-            b = ctk.CTkButton(time_row, text=label, height=44, width=100,
-                              font=("Segoe UI", 13),
-                              fg_color=INPUT_BG, hover_color=CARD,
-                              text_color=TEXT, border_color=BORDER, border_width=1,
-                              command=lambda m=mins: self._pick_time(m))
-            b.pack(side="left", padx=(0, 10))
-            self._time_btns[mins] = b
-        self._pick_time(10)
-
-        # ─ Mode section ───────────────────────────────────────────────────────
-        ctk.CTkLabel(content, text="HOW WOULD YOU LIKE TO ANSWER?",
-                     font=("Segoe UI Semibold", 10), text_color=TEXT_DIM,
-                     anchor="w").grid(row=2, column=0, sticky="w", pady=(0, 12))
-
-        mode_row = ctk.CTkFrame(content, fg_color="transparent")
-        mode_row.grid(row=3, column=0, sticky="w", pady=(0, 0))
-
-        # Voice card
-        vc = self._card(mode_row, corner_radius=12, width=280, height=200)
-        vc.pack(side="left", padx=(0, 16))
-        vc.pack_propagate(False)
-        ctk.CTkLabel(vc, text="🎤", font=("Segoe UI", 32)).place(x=24, y=28)
-        ctk.CTkLabel(vc, text="Voice Mode",
-                     font=("Segoe UI Semibold", 15), text_color=TEXT,
-                     anchor="w").place(x=24, y=76)
-        ctk.CTkLabel(vc, text="Speak your answers aloud",
-                     font=("Segoe UI", 12), text_color=TEXT_DIM,
-                     anchor="w").place(x=24, y=104)
-        v_lbl   = "Select" if SR_AVAILABLE else "Unavailable"
-        v_state = "normal" if SR_AVAILABLE else "disabled"
-        self._voice_mode_btn = ctk.CTkButton(vc, text=v_lbl, height=36, width=248,
-                                              font=FONT_BODY, state=v_state,
-                                              fg_color="transparent", hover_color=CARD,
-                                              text_color=TEXT_DIM if SR_AVAILABLE else BORDER,
-                                              border_color=BORDER, border_width=1,
-                                              command=lambda: self._pick_mode("voice"))
-        self._voice_mode_btn.place(x=16, y=148)
-
-        # Text card
-        tc = self._card(mode_row, corner_radius=12, width=280, height=200,
-                        border_color=GOLD)
-        tc.pack(side="left")
-        tc.pack_propagate(False)
-        ctk.CTkLabel(tc, text="✏️", font=("Segoe UI", 32)).place(x=24, y=28)
-        ctk.CTkLabel(tc, text="Text Mode",
-                     font=("Segoe UI Semibold", 15), text_color=TEXT,
-                     anchor="w").place(x=24, y=76)
-        ctk.CTkLabel(tc, text="Type at your own pace",
-                     font=("Segoe UI", 12), text_color=TEXT_DIM,
-                     anchor="w").place(x=24, y=104)
-        self._text_mode_btn = ctk.CTkButton(tc, text="Selected ✓", height=36, width=248,
-                                             font=FONT_BODY,
-                                             fg_color=GOLD, hover_color=GOLD_HOVER,
-                                             text_color="#0D1117",
-                                             border_color=GOLD, border_width=1,
-                                             command=lambda: self._pick_mode("text"))
-        self._text_mode_btn.place(x=16, y=148)
-        self._mode_cards = {"voice": vc, "text": tc}
-        self._input_mode = "text"
-
-        # ── Footer bar ────────────────────────────────────────────────────────
-        footer = ctk.CTkFrame(outer, fg_color=PANEL, height=74, corner_radius=0)
-        footer.grid(row=2, column=0, sticky="ew")
-        footer.grid_propagate(False)
-        ctk.CTkButton(footer, text="Begin Session  →",
-                      font=("Segoe UI Semibold", 15), height=46, width=220,
-                      fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                      command=self._begin_session).pack(side="right", padx=52, pady=14)
-        ctk.CTkButton(footer, text="← Change sections",
-                      font=FONT_BODY, height=38, width=160,
-                      fg_color="transparent", hover_color=CARD,
-                      text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                      command=self._show_chapter_selection).pack(side="left", padx=52, pady=18)
-
-    def _pick_time(self, mins):
-        self._sel_minutes = mins
-        for m, btn in self._time_btns.items():
-            sel = (m == mins)
-            btn.configure(
-                fg_color=GOLD if sel else INPUT_BG,
-                hover_color=GOLD_HOVER if sel else CARD,
-                text_color="#0D1117" if sel else TEXT,
-                border_color=GOLD if sel else BORDER,
-            )
-
-    def _pick_mode(self, mode: str):
-        self._input_mode = mode
-        for m, c in self._mode_cards.items():
-            c.configure(border_color=GOLD if m == mode else BORDER)
-        self._voice_mode_btn.configure(
-            fg_color=GOLD if mode == "voice" else "transparent",
-            text_color="#0D1117" if mode == "voice" else (TEXT_DIM if SR_AVAILABLE else BORDER),
-            text="Selected ✓" if mode == "voice" else "Select",
-        )
-        self._text_mode_btn.configure(
-            fg_color=GOLD if mode == "text" else "transparent",
-            text_color="#0D1117" if mode == "text" else TEXT_DIM,
-            text="Selected ✓" if mode == "text" else "Select",
-        )
-
-    def _begin_session(self):
-        if self._sel_minutes is not None:
-            self._session_end_time    = datetime.now() + timedelta(minutes=self._sel_minutes)
-            self._session_total_secs  = float(self._sel_minutes * 60)
-        else:
-            self._session_end_time   = None
-            self._session_total_secs = 0
-        self._show_interview()
-
-    # ─────────────────────────────────────────────────────────────────────────
-    # SCREEN 4 — Interview
+    # SCREEN 2 — Interview (sidebar + main panel)
     # ─────────────────────────────────────────────────────────────────────────
 
     def _show_interview(self):
@@ -912,7 +599,7 @@ class EstateInterviewApp(ctk.CTk):
         ch_idx  = self.profile.current_chapter
         if enabled and ch_idx not in enabled:
             ch_idx = enabled[0]
-        self._show_chapter_landing(ch_idx)
+        self._show_chapter_form(ch_idx)
 
     # ── Sidebar ────────────────────────────────────────────────────────────────
 
@@ -950,10 +637,6 @@ class EstateInterviewApp(ctk.CTk):
         # Bottom actions
         bot = ctk.CTkFrame(sb, fg_color="transparent")
         bot.grid(row=3, column=0, sticky="ew", padx=12, pady=10)
-        ctk.CTkButton(bot, text="✔  Done for Today",
-                      height=40, font=("Segoe UI Semibold", 12),
-                      fg_color=GREEN, hover_color=GREEN_LT, text_color="#FFFFFF",
-                      command=self._finished_for_today).pack(fill="x", pady=(0, 5))
         ctk.CTkButton(bot, text="Export PDF", height=32,
                       fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
                       font=("Segoe UI Semibold", 11),
@@ -1003,26 +686,6 @@ class EstateInterviewApp(ctk.CTk):
         ctrl = ctk.CTkFrame(top, fg_color="transparent")
         ctrl.grid(row=0, column=1, padx=12, sticky="e")
 
-        # Timer
-        self._timer_label = ctk.CTkLabel(ctrl, text="", width=80,
-                                          font=("Segoe UI Semibold", 11), text_color=GOLD)
-        self._timer_label.pack(side="left", padx=(0, 8))
-        self._timer_bar = ctk.CTkProgressBar(ctrl, height=6, width=90,
-                                              fg_color=BORDER, progress_color=GOLD)
-        if self._session_end_time:
-            self._timer_bar.pack(side="left", padx=(0, 14))
-            self._timer_bar.set(1.0)
-
-        # Mode toggle
-        self._mode_btn = ctk.CTkButton(
-            ctrl,
-            text="🎤 Voice" if self._input_mode == "voice" else "✏️  Text",
-            width=92, height=30, font=FONT_TINY,
-            fg_color="transparent", hover_color=CARD, text_color=TEXT_DIM,
-            border_color=BORDER, border_width=1,
-            command=self._toggle_mode)
-        self._mode_btn.pack(side="left", padx=(0, 8))
-
         # Mute
         self._mute_btn = ctk.CTkButton(
             ctrl,
@@ -1045,315 +708,353 @@ class EstateInterviewApp(ctk.CTk):
         nav = ctk.CTkFrame(self._main, fg_color=PANEL, corner_radius=0, height=62)
         nav.grid(row=2, column=0, sticky="ew")
         nav.grid_propagate(False)
-        nav.grid_columnconfigure(1, weight=1)
+        nav.grid_columnconfigure(2, weight=1)
 
-        self._prev_btn = ctk.CTkButton(nav, text="← Previous", width=130, height=38,
+        self._prev_btn = ctk.CTkButton(nav, text="<- Previous Chapter", width=170, height=38,
                                         fg_color="transparent", hover_color=CARD,
                                         text_color=TEXT_DIM, font=FONT_BODY,
                                         border_color=BORDER, border_width=1,
-                                        command=self._go_prev)
-        self._prev_btn.grid(row=0, column=0, padx=22, pady=12)
+                                        command=self._go_prev_chapter)
+        self._prev_btn.grid(row=0, column=0, padx=(22, 8), pady=12)
+
+        # ── Mic controls in footer
+        if SR_AVAILABLE:
+            mic_frame = ctk.CTkFrame(nav, fg_color="transparent")
+            mic_frame.grid(row=0, column=1, padx=4, pady=12)
+
+            self._footer_rec_btn = ctk.CTkButton(
+                mic_frame, text="Record", width=90, height=36,
+                font=("Segoe UI Semibold", 11),
+                fg_color=RED_DIM, hover_color=RED, text_color="#FFFFFF",
+                corner_radius=18, command=self._footer_mic_start)
+            self._footer_rec_btn.pack(side="left", padx=(0, 4))
+
+            self._footer_stop_btn = ctk.CTkButton(
+                mic_frame, text="Stop", width=60, height=36,
+                font=("Segoe UI", 11), state="disabled",
+                fg_color="transparent", hover_color=CARD,
+                text_color=TEXT_DIM, border_color=BORDER, border_width=1,
+                corner_radius=18, command=self._footer_mic_stop)
+            self._footer_stop_btn.pack(side="left", padx=(0, 4))
+
+            self._mic_label = ctk.CTkLabel(
+                mic_frame, text="Click a field, then Record",
+                font=("Segoe UI", 10), text_color=TEXT_DIM, width=160)
+            self._mic_label.pack(side="left", padx=(4, 0))
 
         self._save_label = ctk.CTkLabel(nav, text="", font=FONT_TINY, text_color=TEXT_DIM)
-        self._save_label.grid(row=0, column=1)
+        self._save_label.grid(row=0, column=2)
 
-        self._next_btn = ctk.CTkButton(nav, text="Save & Continue  →",
-                                        width=174, height=38,
+        self._next_btn = ctk.CTkButton(nav, text="Next Chapter  ->",
+                                        width=170, height=38,
                                         fg_color=GOLD, hover_color=GOLD_HOVER,
                                         text_color="#0D1117",
                                         font=("Segoe UI Semibold", 12),
-                                        command=self._go_next)
-        self._next_btn.grid(row=0, column=2, padx=22, pady=12)
+                                        command=self._go_next_chapter)
+        self._next_btn.grid(row=0, column=3, padx=(8, 22), pady=12)
 
-        self._skip_btn = ctk.CTkButton(nav, text="Skip →", width=78, height=38,
-                                        fg_color="transparent", hover_color=CARD,
-                                        text_color=TEXT_DIM, font=FONT_TINY,
-                                        border_color="transparent",
-                                        command=self._go_skip)
-        self._skip_btn.grid(row=0, column=3, padx=(0, 18), pady=12)
+    # ── Chapter form (all questions for a chapter) ─────────────────────────────
 
-    # ── Timer ──────────────────────────────────────────────────────────────────
-
-    def _tick_timer(self):
-        if not self._session_end_time:
-            return
-        remaining = (self._session_end_time - datetime.now()).total_seconds()
-        if remaining <= 0:
-            self._time_up()
-            return
-        m, s = int(remaining // 60), int(remaining % 60)
-        color = RED if remaining < 60 else (AMBER if remaining < 120 else GOLD)
-        self._timer_label.configure(text=f"{m}:{s:02d} left", text_color=color)
-        frac = remaining / max(self._session_total_secs, 1)
-        self._timer_bar.configure(progress_color=color)
-        self._timer_bar.set(max(0.0, min(1.0, frac)))
-        self._timer_id = self.after(1000, self._tick_timer)
-
-    def _time_up(self):
-        self._save_current_answer()
-        self._session_end_time = None
+    def _show_chapter_form(self, ch_idx: int):
+        """Show all questions for this chapter as a scrollable form."""
         stop_speaking()
-        self._show_time_up_card()
+        self._voice_flow = 0
+        if self._flow_auto_id:
+            self.after_cancel(self._flow_auto_id)
+            self._flow_auto_id = None
 
-    def _show_time_up_card(self):
-        for w in self._content.winfo_children():
-            w.destroy()
-        card = self._card(self._content, border_color=GOLD, corner_radius=14)
-        card.grid(row=0, column=0, sticky="nsew", padx=60, pady=60)
-        self._content.grid_columnconfigure(0, weight=1)
-        card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(card, text="⏱", font=("Segoe UI", 52)).grid(pady=(44, 8))
-        ctk.CTkLabel(card, text="Session complete.",
-                     font=("Segoe UI Bold", 24), text_color=TEXT).grid()
-        ctk.CTkLabel(card, text="Everything you answered has been saved.",
-                     font=("Segoe UI", 13), text_color=TEXT_DIM).grid(pady=(8, 24))
-        ctk.CTkLabel(card, text=f"{self.profile.pct()}% of your estate plan is complete.",
-                     font=("Segoe UI Semibold", 12), text_color=TEXT).grid()
-        pb = ctk.CTkProgressBar(card, height=8, fg_color=BORDER,
-                                 progress_color=GOLD, width=360)
-        pb.grid(pady=(8, 32))
-        pb.set(self.profile.pct() / 100)
-        ctk.CTkButton(card, text="Start another session  →",
-                      font=("Segoe UI Semibold", 13), height=46, width=260,
-                      fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                      command=self._show_session_setup).grid(pady=(0, 12))
-        ctk.CTkButton(card, text="Export PDF",
-                      font=FONT_BODY, height=38, width=260,
-                      fg_color="transparent", hover_color=CARD, text_color=GOLD,
-                      border_color=GOLD, border_width=1,
-                      command=self._export_pdf).grid(pady=(0, 40))
-        self._chapter_header.configure(text="Session complete")
-
-    def _pause_session(self):
-        self._save_current_answer()
-        self._session_end_time = None
-        self._show_chapter_landing(self.profile.current_chapter)
-
-    def _save_current_answer(self):
-        try:
-            answer = self._get_current_answer()
-            if answer:
-                ch = CHAPTERS[self.profile.current_chapter]
-                q  = ch["questions"][self.profile.current_question]
-                self.profile.set_answer(q["id"], answer)
-        except Exception:
-            pass
-
-    # ── Input mode toggle ──────────────────────────────────────────────────────
-
-    def _toggle_mode(self):
-        self._input_mode = "voice" if self._input_mode == "text" else "text"
-        self._mode_btn.configure(
-            text="🎤 Voice" if self._input_mode == "voice" else "✏️  Text")
-        self._load_question(self.profile.current_chapter,
-                            self.profile.current_question, speak_intro=False)
-
-    # ── Question rendering ─────────────────────────────────────────────────────
-
-    def _load_question(self, ch_idx: int, q_idx: int, speak_intro: bool = False):
         ch_idx = max(0, min(ch_idx, len(CHAPTERS) - 1))
-        ch     = CHAPTERS[ch_idx]
-        q_idx  = max(0, min(q_idx, len(ch["questions"]) - 1))
-        self.profile.current_chapter  = ch_idx
-        self.profile.current_question = q_idx
+        self.profile.current_chapter = ch_idx
         self.profile.save()
-        self._recording = False
-        self._answer_widget = None
 
-        q    = ch["questions"][q_idx]
+        ch   = CHAPTERS[ch_idx]
         a, t = self.profile.chapter_counts(ch_idx)
+
         self._chapter_header.configure(
-            text=f"{ch['title']}  ·  Question {q_idx + 1} of {t}")
+            text=f"Chapter {ch_idx + 1}  —  {ch['title']}  ({a}/{t} answered)")
 
         for w in self._content.winfo_children():
             w.destroy()
-
-        # Chapter intro card (first question only)
-        row_offset = 0
-        if q_idx == 0:
-            ic = self._card(self._content)
-            ic.grid(row=0, column=0, sticky="ew", padx=32, pady=(28, 12))
-            ic.grid_columnconfigure(0, weight=1)
-            ctk.CTkLabel(ic,
-                         text=f"Chapter {ch_idx + 1} of {len(CHAPTERS)}  —  {ch['title']}",
-                         font=("Segoe UI", 10), text_color=GOLD,
-                         anchor="w").grid(row=0, column=0, padx=20, pady=(16, 2), sticky="w")
-            ctk.CTkLabel(ic, text=ch["intro"],
-                         font=("Segoe UI", 12), text_color=TEXT_DIM,
-                         anchor="w", justify="left", wraplength=620).grid(
-                row=1, column=0, padx=20, pady=(0, 16), sticky="w")
-            row_offset = 1
-
-        # Question card
-        qc = self._card(self._content)
-        qc.grid(row=row_offset, column=0, sticky="ew", padx=32,
-                pady=(12 if row_offset else 28, 8))
-        qc.grid_columnconfigure(0, weight=1)
         self._content.grid_columnconfigure(0, weight=1)
 
-        # Badges
-        br = ctk.CTkFrame(qc, fg_color="transparent")
-        br.grid(row=0, column=0, sticky="ew", padx=24, pady=(20, 0))
-        if q.get("required"):
-            ctk.CTkLabel(br, text="REQUIRED",
-                         font=("Segoe UI", 8), text_color=GOLD,
-                         fg_color=CARD, corner_radius=4).pack(side="left")
-        if q.get("sensitive"):
-            ctk.CTkLabel(br, text="  SENSITIVE — this document is private",
-                         font=("Segoe UI", 8), text_color=TEXT_DIM).pack(side="left")
+        # Track all field widgets for saving
+        self._form_fields = {}  # q_id -> widget
 
-        # Question text
-        ctk.CTkLabel(qc, text=q["text"],
-                     font=FONT_LARGE, text_color=TEXT,
-                     anchor="w", justify="left", wraplength=650).grid(
-            row=1, column=0, padx=24, pady=(10, 4), sticky="w")
+        row = 0
 
-        # Help text
-        if q.get("help"):
-            ctk.CTkLabel(qc, text=q["help"],
-                         font=FONT_TINY, text_color=TEXT_DIM, anchor="w").grid(
-                row=2, column=0, padx=24, pady=(0, 8), sticky="w")
+        # ── Chapter intro card ────────────────────────────────────────────
+        ic = self._card(self._content, corner_radius=12)
+        ic.grid(row=row, column=0, sticky="ew", padx=28, pady=(20, 8))
+        ic.grid_columnconfigure(0, weight=1)
 
-        # Input area
-        existing = self.profile.get_answer(q["id"])
-        if self._input_mode == "voice" and SR_AVAILABLE:
-            self._build_voice_area(qc, q, existing, row=3)
+        ctk.CTkLabel(ic,
+                     text=f"Chapter {ch_idx + 1} of {len(CHAPTERS)}",
+                     font=("Segoe UI", 10), text_color=GOLD,
+                     anchor="w").grid(row=0, column=0, padx=20, pady=(14, 2), sticky="w")
+        ctk.CTkLabel(ic, text=ch["title"],
+                     font=("Segoe UI Bold", 22), text_color=TEXT,
+                     anchor="w").grid(row=1, column=0, padx=20, sticky="w")
+        ctk.CTkLabel(ic, text=ch["intro"],
+                     font=("Segoe UI", 12), text_color=TEXT_DIM,
+                     anchor="w", justify="left", wraplength=620).grid(
+            row=2, column=0, padx=20, pady=(4, 14), sticky="w")
+
+        # Voice flow buttons
+        if SR_AVAILABLE and t > 1:
+            vf = ctk.CTkFrame(ic, fg_color="transparent")
+            vf.grid(row=3, column=0, padx=20, pady=(0, 14), sticky="w")
+            unanswered = t - a
+            if unanswered > 0:
+                flow_count = min(unanswered, 5) if unanswered >= 5 else unanswered
+                ctk.CTkButton(vf, text=f"🎤  Answer {flow_count} by Voice",
+                              font=("Segoe UI Semibold", 11), height=36, width=200,
+                              fg_color="#1e3a5f", hover_color="#163050",
+                              text_color="#bfdbfe", corner_radius=8,
+                              command=lambda: self._start_voice_flow(ch_idx, flow_count)
+                              ).pack(side="left", padx=(0, 10))
+                if unanswered > 5:
+                    ctk.CTkButton(vf, text=f"🎤  All {unanswered} unanswered",
+                                  font=("Segoe UI Semibold", 11), height=36, width=200,
+                                  fg_color="#1e3a5f", hover_color="#163050",
+                                  text_color="#bfdbfe", corner_radius=8,
+                                  command=lambda: self._start_voice_flow(ch_idx, unanswered)
+                                  ).pack(side="left")
+
+        row += 1
+
+        # ── Question fields ───────────────────────────────────────────────
+        for qi, q in enumerate(ch["questions"]):
+            existing = self.profile.get_answer(q["id"])
+
+            qf = self._card(self._content, corner_radius=8)
+            qf.grid(row=row, column=0, sticky="ew", padx=28, pady=4)
+            qf.grid_columnconfigure(0, weight=1)
+
+            # Question label row
+            lbl_row = ctk.CTkFrame(qf, fg_color="transparent")
+            lbl_row.grid(row=0, column=0, padx=16, pady=(12, 2), sticky="ew")
+            lbl_row.grid_columnconfigure(0, weight=1)
+
+            q_text = q["text"]
+            if q.get("required"):
+                q_text += "  *"
+            ctk.CTkLabel(lbl_row, text=q_text,
+                         font=("Segoe UI Semibold", 12), text_color=TEXT,
+                         anchor="w", wraplength=580, justify="left").grid(
+                row=0, column=0, sticky="w")
+
+            # Help text
+            if q.get("help"):
+                ctk.CTkLabel(qf, text=q["help"],
+                             font=("Segoe UI", 10), text_color=TEXT_DIM,
+                             anchor="w").grid(row=1, column=0, padx=16, sticky="w")
+
+            # Focus tracker — so footer mic knows which field to record into
+            def _make_focus_tracker(qid):
+                def _on_focus(e=None):
+                    self._focused_qid = qid
+                    self._update_mic_label()
+                return _on_focus
+
+            # Input field
+            if q["type"] == "multiline":
+                widget = ctk.CTkTextbox(
+                    qf, height=90, font=FONT_BODY,
+                    fg_color=INPUT_BG, border_color=BORDER, border_width=1,
+                    text_color=TEXT, corner_radius=6)
+                widget.grid(row=2, column=0, padx=12, pady=(4, 12), sticky="ew")
+                if existing:
+                    widget.insert("1.0", existing)
+
+                def _make_saver_tb(qid, w):
+                    def _save(e=None):
+                        val = w.get("1.0", "end").strip()
+                        self.profile.set_answer(qid, val)
+                        self._update_header_counts()
+                    return _save
+                widget.bind("<FocusOut>", _make_saver_tb(q["id"], widget))
+                widget.bind("<FocusIn>", _make_focus_tracker(q["id"]))
+            else:
+                widget = ctk.CTkEntry(
+                    qf, height=40, font=FONT_BODY,
+                    placeholder_text=q.get("placeholder", ""),
+                    fg_color=INPUT_BG, border_color=BORDER, border_width=1,
+                    text_color=TEXT, corner_radius=6)
+                widget.grid(row=2, column=0, padx=12, pady=(4, 12), sticky="ew")
+                if existing:
+                    widget.insert(0, existing)
+
+                def _make_saver_entry(qid, w):
+                    def _save(e=None):
+                        val = w.get().strip()
+                        self.profile.set_answer(qid, val)
+                        self._update_header_counts()
+                    return _save
+                widget.bind("<FocusOut>", _make_saver_entry(q["id"], widget))
+                widget.bind("<FocusIn>", _make_focus_tracker(q["id"]))
+
+            self._form_fields[q["id"]] = widget
+            row += 1
+
+        # ── Bottom padding ────────────────────────────────────────────────
+        ctk.CTkFrame(self._content, fg_color="transparent", height=20).grid(
+            row=row, column=0)
+
+        # ── Update nav buttons ────────────────────────────────────────────
+        enabled = self.profile.enabled_indices()
+        ch_pos  = enabled.index(ch_idx) if ch_idx in enabled else 0
+        self._prev_btn.configure(
+            state="normal" if ch_pos > 0 else "disabled")
+        if ch_pos < len(enabled) - 1:
+            next_name = CHAPTERS[enabled[ch_pos + 1]]["title"]
+            self._next_btn.configure(text=f"{next_name}  ->")
         else:
-            self._build_text_area(qc, q, existing, row=3)
-
-        # Saved note
-        if existing:
-            ctk.CTkLabel(qc,
-                         text="Currently saved — edit above and click Save & Continue to update.",
-                         font=FONT_TINY, text_color=TEXT_DIM).grid(
-                row=5, column=0, padx=24, pady=(0, 12), sticky="w")
-
-        is_first = (ch_idx == 0 and q_idx == 0)
-        self._prev_btn.configure(state="disabled" if is_first else "normal")
-        self._skip_btn.configure(
-            state="normal" if not q.get("required") else "disabled",
-            text_color=TEXT_DIM if not q.get("required") else BORDER)
+            self._next_btn.configure(text="Export PDF  ->")
 
         self._render_chapter_list()
         self._update_progress()
-        if self._answer_widget:
+
+    def _update_header_counts(self):
+        """Update the top bar with current answer counts after a field save."""
+        ch_idx = self.profile.current_chapter
+        ch     = CHAPTERS[ch_idx]
+        a, t   = self.profile.chapter_counts(ch_idx)
+        self._chapter_header.configure(
+            text=f"Chapter {ch_idx + 1}  —  {ch['title']}  ({a}/{t} answered)")
+        self._update_progress()
+        self._flash_saved()
+
+    def _save_all_form_fields(self):
+        """Save every field in the current form to the profile."""
+        for qid, widget in self._form_fields.items():
             try:
-                self._answer_widget.focus()
+                if isinstance(widget, ctk.CTkTextbox):
+                    val = widget.get("1.0", "end").strip()
+                else:
+                    val = widget.get().strip()
+                if val:
+                    self.profile.set_answer(qid, val)
             except Exception:
                 pass
+
+    # ── Voice flow (within form) ──────────────────────────────────────────────
+
+    def _start_voice_flow(self, ch_idx: int, count: int):
+        """Start voice flow through unanswered questions in the current chapter."""
+        ch = CHAPTERS[ch_idx]
+        # Find first unanswered question
+        for qi, q in enumerate(ch["questions"]):
+            if not self.profile.get_answer(q["id"]).strip():
+                self._voice_flow = count
+                self._voice_flow_chapter = ch_idx
+                self._voice_flow_q_index = qi
+                self._voice_flow_ask_next()
+                return
+
+    def _voice_flow_ask_next(self):
+        """Ask the next unanswered question via TTS then record."""
+        if self._voice_flow <= 0:
+            return
+
+        ch = CHAPTERS[self._voice_flow_chapter]
+        questions = ch["questions"]
+
+        # Find next unanswered from current position
+        while self._voice_flow_q_index < len(questions):
+            q = questions[self._voice_flow_q_index]
+            if not self.profile.get_answer(q["id"]).strip():
+                break
+            self._voice_flow_q_index += 1
+        else:
+            # No more unanswered
+            self._voice_flow = 0
+            self._show_chapter_form(self._voice_flow_chapter)
+            return
+
+        q = questions[self._voice_flow_q_index]
+
+        # Speak the question
         if not self.muted:
-            if speak_intro and q_idx == 0:
-                speak(ch["intro"] + " " + q["voice"])
-            else:
-                speak(q["voice"])
+            speak(q["voice"])
 
-    def _build_text_area(self, parent, q, existing, row):
-        """Standard text input — single line or multiline."""
-        wrap = ctk.CTkFrame(parent, fg_color="transparent")
-        wrap.grid(row=row, column=0, padx=20, pady=(4, 4), sticky="ew")
-        wrap.grid_columnconfigure(0, weight=1)
+        # Show a recording overlay
+        self._show_voice_overlay(q)
 
-        if q["type"] == "multiline":
-            self._answer_widget = ctk.CTkTextbox(
-                wrap, height=130, font=FONT_BODY,
-                fg_color=INPUT_BG, border_color=BORDER, border_width=1,
-                text_color=TEXT, corner_radius=8)
-            self._answer_widget.grid(row=0, column=0, sticky="ew")
-            if existing:
-                self._answer_widget.insert("1.0", existing)
-        else:
-            self._answer_widget = ctk.CTkEntry(
-                wrap, height=46, font=FONT_BODY,
-                placeholder_text=q.get("placeholder", ""),
-                fg_color=INPUT_BG, border_color=BORDER, border_width=1,
-                text_color=TEXT, corner_radius=8)
-            self._answer_widget.grid(row=0, column=0, sticky="ew")
-            if existing:
-                self._answer_widget.insert(0, existing)
-            self._answer_widget.bind("<Return>", lambda e: self._go_next())
+    def _show_voice_overlay(self, q):
+        """Show a voice recording popup over the form."""
+        # Create overlay frame at top of content
+        self._voice_overlay = ctk.CTkFrame(self._content, fg_color="#1e3a5f",
+                                            corner_radius=12, border_color=GOLD,
+                                            border_width=2)
+        self._voice_overlay.grid(row=0, column=0, sticky="ew", padx=28, pady=(20, 8))
+        self._voice_overlay.grid_columnconfigure(0, weight=1)
+        self._voice_overlay.lift()
 
-        if SR_AVAILABLE:
-            ctk.CTkButton(wrap, text="🎤  Switch to voice input",
-                          width=176, height=26, font=FONT_TINY,
-                          fg_color="transparent", hover_color=CARD, text_color=TEXT_DIM,
-                          border_color=BORDER, border_width=1,
-                          command=self._switch_to_voice).grid(
-                row=1, column=0, sticky="w", pady=(6, 6))
+        ctk.CTkLabel(self._voice_overlay,
+                     text=f"🎤  Voice Flow — {self._voice_flow} remaining",
+                     font=("Segoe UI Semibold", 11), text_color="#bfdbfe",
+                     anchor="w").grid(row=0, column=0, padx=20, pady=(14, 4), sticky="w")
 
-    def _build_voice_area(self, parent, q, existing, row):
-        """Voice recording input area with record / pause / stop controls."""
-        vc = ctk.CTkFrame(parent, fg_color=INPUT_BG, corner_radius=10,
-                           border_color=BORDER, border_width=1)
-        vc.grid(row=row, column=0, padx=20, pady=(4, 4), sticky="ew")
-        vc.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(self._voice_overlay, text=q["text"],
+                     font=("Segoe UI Bold", 16), text_color="#FFFFFF",
+                     anchor="w", wraplength=560, justify="left").grid(
+            row=1, column=0, padx=20, pady=(0, 4), sticky="w")
 
-        self._voice_status = ctk.CTkLabel(
-            vc, text="Tap the button below to start speaking your answer",
-            font=("Segoe UI", 12), text_color=TEXT_DIM)
-        self._voice_status.grid(row=0, column=0, pady=(20, 8))
+        self._voice_status = ctk.CTkLabel(self._voice_overlay,
+                     text="Listening after the voice finishes reading...",
+                     font=("Segoe UI", 12), text_color="#93c5fd")
+        self._voice_status.grid(row=2, column=0, padx=20, pady=(4, 4), sticky="w")
 
-        # Large record button
-        self._rec_btn = ctk.CTkButton(
-            vc, text="⬤  Start Recording",
-            width=210, height=54,
-            font=("Segoe UI Semibold", 14),
-            fg_color=RED_DIM, hover_color=RED,
-            text_color=TEXT, corner_radius=27,
-            command=self._voice_start)
-        self._rec_btn.grid(row=1, column=0, pady=(0, 10))
+        self._voice_box = ctk.CTkTextbox(self._voice_overlay, height=60, font=FONT_BODY,
+                                          fg_color="#0f2036", border_color="#334155",
+                                          border_width=1, text_color="#e2e8f0",
+                                          corner_radius=6)
+        self._voice_box.grid(row=3, column=0, padx=16, pady=(4, 4), sticky="ew")
+        self._voice_box.configure(state="disabled")
 
-        # Pause / stop buttons
-        ctrl = ctk.CTkFrame(vc, fg_color="transparent")
-        ctrl.grid(row=2, column=0, pady=(0, 10))
-        self._pause_btn = ctk.CTkButton(ctrl, text="⏸  Pause", width=104, height=34,
-                                         font=FONT_BODY, state="disabled",
-                                         fg_color="transparent", hover_color=CARD,
-                                         text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                                         command=self._voice_pause)
+        btn_row = ctk.CTkFrame(self._voice_overlay, fg_color="transparent")
+        btn_row.grid(row=4, column=0, padx=16, pady=(4, 14))
+
+        self._rec_btn = ctk.CTkButton(btn_row, text="⬤  Start Recording",
+                     width=180, height=44, font=("Segoe UI Semibold", 13),
+                     fg_color=RED_DIM, hover_color=RED, text_color="#FFFFFF",
+                     corner_radius=22, command=self._voice_start)
+        self._rec_btn.pack(side="left", padx=(0, 10))
+
+        self._pause_btn = ctk.CTkButton(btn_row, text="⏸  Pause", width=90, height=36,
+                     font=FONT_BODY, state="disabled",
+                     fg_color="transparent", hover_color="#163050",
+                     text_color="#93c5fd", border_color="#334155", border_width=1,
+                     command=self._voice_pause)
         self._pause_btn.pack(side="left", padx=(0, 8))
-        self._stop_btn = ctk.CTkButton(ctrl, text="■  Stop & Use", width=124, height=34,
-                                        font=FONT_BODY, state="disabled",
-                                        fg_color="transparent", hover_color=CARD,
-                                        text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                                        command=self._voice_stop)
-        self._stop_btn.pack(side="left")
 
-        # Transcription edit box
-        self._voice_edit_label = ctk.CTkLabel(
-            vc, text="Your transcribed answer will appear here",
-            font=FONT_TINY, text_color=TEXT_DIM)
-        self._voice_edit_label.grid(row=3, column=0, pady=(4, 0))
+        ctk.CTkButton(btn_row, text="Stop Flow", width=90, height=36,
+                     font=FONT_BODY,
+                     fg_color="transparent", hover_color="#163050",
+                     text_color="#93c5fd", border_color="#334155", border_width=1,
+                     command=self._stop_voice_flow_and_refresh
+                     ).pack(side="left")
 
-        self._voice_box = ctk.CTkTextbox(vc, height=80, font=FONT_BODY,
-                                          fg_color=CARD, border_color=BORDER, border_width=1,
-                                          text_color=TEXT, corner_radius=6)
-        self._voice_box.grid(row=4, column=0, padx=16, pady=(4, 4), sticky="ew")
-        if existing:
-            self._voice_box.insert("1.0", existing)
-            self._voice_edit_label.configure(
-                text="Current saved answer — edit below or record a new one:")
-        else:
-            self._voice_box.configure(state="disabled")
+        # Auto-start recording after TTS delay
+        delay = 4000 if not self.muted else 500
+        if self._flow_auto_id:
+            self.after_cancel(self._flow_auto_id)
+        self._flow_auto_id = self.after(delay, self._flow_auto_record)
 
-        self._answer_widget = self._voice_box
+    def _flow_auto_record(self):
+        """Called by after() to auto-start recording during voice flow."""
+        self._flow_auto_id = None
+        if self._voice_flow > 0 and not self._recording:
+            self._voice_start()
 
-        ctk.CTkButton(vc, text="✏️  Switch to text input",
-                      width=160, height=26, font=FONT_TINY,
-                      fg_color="transparent", hover_color=CARD, text_color=TEXT_DIM,
-                      border_color=BORDER, border_width=1,
-                      command=self._switch_to_text).grid(row=5, column=0, pady=(4, 18))
-
-    def _switch_to_voice(self):
-        self._input_mode = "voice"
-        self._mode_btn.configure(text="🎤 Voice")
-        self._load_question(self.profile.current_chapter,
-                            self.profile.current_question, speak_intro=False)
-
-    def _switch_to_text(self):
-        self._input_mode = "text"
-        self._mode_btn.configure(text="✏️  Text")
-        self._load_question(self.profile.current_chapter,
-                            self.profile.current_question, speak_intro=False)
+    def _stop_voice_flow_and_refresh(self):
+        """Stop voice flow and refresh the chapter form."""
+        self._voice_flow = 0
+        if self._flow_auto_id:
+            self.after_cancel(self._flow_auto_id)
+            self._flow_auto_id = None
+        stop_speaking()
+        self._show_chapter_form(self.profile.current_chapter)
 
     # ── Voice recording logic ──────────────────────────────────────────────────
 
@@ -1364,12 +1065,10 @@ class EstateInterviewApp(ctk.CTk):
         self._recording = True
         self._rec_btn.configure(text="● Listening...", fg_color=RED)
         self._voice_status.configure(
-            text="Listening — speak clearly, then pause naturally", text_color=TEXT)
+            text="Listening — speak clearly, then pause naturally", text_color="#93c5fd")
         self._pause_btn.configure(state="normal")
-        self._stop_btn.configure(state="normal")
         stop_speaking()
 
-        # Use Windows built-in Speech Recognition via PowerShell — no packages needed
         ps_script = (
             "Add-Type -AssemblyName System.Speech; "
             "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
@@ -1404,27 +1103,58 @@ class EstateInterviewApp(ctk.CTk):
         global _voice_process
         _voice_process = None
         self._recording = False
-        self._rec_btn.configure(text="⬤  Record more", fg_color=RED_DIM)
+        self._rec_btn.configure(text="⬤  Record Again", fg_color=RED_DIM)
         self._pause_btn.configure(state="disabled")
-        self._stop_btn.configure(state="disabled")
+
         if text:
             self._voice_box.configure(state="normal")
             prev = self._voice_box.get("1.0", "end").strip()
             combined = (prev + " " + text).strip() if prev else text
             self._voice_box.delete("1.0", "end")
             self._voice_box.insert("1.0", combined)
-            self._voice_edit_label.configure(
-                text="Transcribed — edit if needed, or tap Record more to continue:")
             self._voice_status.configure(
-                text="Got it. Record more to continue, or Save & Continue.",
-                text_color=GREEN_LT)
+                text="Got it. Recording again, or moving to next...",
+                text_color="#86efac")
+
+            # Save the answer
+            if self._voice_flow > 0:
+                ch = CHAPTERS[self._voice_flow_chapter]
+                q  = ch["questions"][self._voice_flow_q_index]
+                self.profile.set_answer(q["id"], combined)
+                self._voice_flow -= 1
+                self._voice_flow_q_index += 1
+                if self._voice_flow > 0:
+                    self.after(1500, self._voice_flow_next_or_done)
+                else:
+                    self._voice_status.configure(
+                        text="Voice flow complete. All answers saved.",
+                        text_color="#86efac")
+                    self.after(1500, lambda: self._show_chapter_form(
+                        self._voice_flow_chapter))
         else:
             self._voice_status.configure(
-                text="Nothing captured — check your microphone, or switch to text.",
-                text_color=AMBER)
+                text="Nothing captured — try again or click Stop Flow.",
+                text_color="#fbbf24")
+            if self._voice_flow > 0:
+                self._voice_flow = 0
+                self.after(2000, lambda: self._show_chapter_form(
+                    self.profile.current_chapter))
+
+    def _voice_flow_next_or_done(self):
+        """Move to next unanswered question in voice flow."""
+        if self._voice_flow <= 0:
+            self._show_chapter_form(self.profile.current_chapter)
+            return
+        # Remove overlay and ask next
+        try:
+            self._voice_overlay.destroy()
+        except Exception:
+            pass
+        self._voice_flow_ask_next()
 
     def _voice_pause(self):
         global _voice_process
+        self._voice_flow = 0
         self._recording = False
         if _voice_process:
             try:
@@ -1434,11 +1164,118 @@ class EstateInterviewApp(ctk.CTk):
             _voice_process = None
         self._rec_btn.configure(text="⬤  Start Recording", fg_color=RED_DIM)
         self._pause_btn.configure(state="disabled")
-        self._stop_btn.configure(state="disabled")
-        self._voice_status.configure(text="Paused. Tap Start Recording to continue.",
-                                      text_color=TEXT_DIM)
+        self._voice_status.configure(text="Paused. Voice flow stopped.",
+                                      text_color="#93c5fd")
+        self.after(1500, lambda: self._show_chapter_form(
+            self.profile.current_chapter))
 
-    def _voice_stop(self):
+    # ── Footer mic (record into focused field) ──────────────────────────────
+
+    def _update_mic_label(self):
+        """Update the mic label to show which field will receive dictation."""
+        if not SR_AVAILABLE or not hasattr(self, '_mic_label'):
+            return
+        if self._focused_qid and self._focused_qid in self._form_fields:
+            # Find the question label
+            ch = CHAPTERS[self.profile.current_chapter]
+            for q in ch["questions"]:
+                if q["id"] == self._focused_qid:
+                    short = q["label"][:25]
+                    self._mic_label.configure(text=f"Field: {short}",
+                                               text_color=TEXT)
+                    return
+        self._mic_label.configure(text="Click a field, then Record",
+                                   text_color=TEXT_DIM)
+
+    def _footer_mic_start(self):
+        """Start recording into the currently focused form field."""
+        global _voice_process
+        if self._recording:
+            return
+        if not self._focused_qid or self._focused_qid not in self._form_fields:
+            self._mic_label.configure(text="Click a field first!",
+                                       text_color=RED)
+            self.after(2000, self._update_mic_label)
+            return
+
+        self._recording = True
+        self._footer_rec_btn.configure(text="Listening...", fg_color=RED)
+        self._footer_stop_btn.configure(state="normal")
+        self._mic_label.configure(text="Speak now...", text_color=RED)
+        stop_speaking()
+
+        ps_script = (
+            "Add-Type -AssemblyName System.Speech; "
+            "[Console]::OutputEncoding = [System.Text.Encoding]::UTF8; "
+            "$r = New-Object System.Speech.Recognition.SpeechRecognitionEngine; "
+            "$r.SetInputToDefaultAudioDevice(); "
+            "$g = New-Object System.Speech.Recognition.DictationGrammar; "
+            "$r.LoadGrammar($g); "
+            "$result = $r.Recognize([System.TimeSpan]::FromSeconds(30)); "
+            "if ($result) { Write-Output $result.Text }"
+        )
+
+        def _record():
+            global _voice_process
+            try:
+                _voice_process = _subp.Popen(
+                    ["powershell", "-WindowStyle", "Hidden", "-Command", ps_script],
+                    stdout=_subp.PIPE, stderr=_subp.DEVNULL,
+                    creationflags=_subp.CREATE_NO_WINDOW,
+                    encoding="utf-8",
+                )
+                text, _ = _voice_process.communicate(timeout=35)
+                text = (text or "").strip()
+                self.after(0, lambda: self._footer_mic_done(text))
+            except Exception:
+                self.after(0, lambda: self._footer_mic_done(""))
+            finally:
+                _voice_process = None
+
+        threading.Thread(target=_record, daemon=True).start()
+
+    def _footer_mic_done(self, text: str):
+        """Handle completed footer mic recording — insert text into focused field."""
+        global _voice_process
+        _voice_process = None
+        self._recording = False
+        self._footer_rec_btn.configure(text="Record", fg_color=RED_DIM)
+        self._footer_stop_btn.configure(state="disabled")
+
+        qid = self._focused_qid
+        if not text:
+            self._mic_label.configure(text="Nothing captured. Try again.",
+                                       text_color=AMBER)
+            self.after(2000, self._update_mic_label)
+            return
+
+        if qid not in self._form_fields:
+            self._mic_label.configure(text="Field gone. Click another.",
+                                       text_color=AMBER)
+            self.after(2000, self._update_mic_label)
+            return
+
+        widget = self._form_fields[qid]
+        if isinstance(widget, ctk.CTkTextbox):
+            prev = widget.get("1.0", "end").strip()
+            combined = (prev + " " + text).strip() if prev else text
+            widget.delete("1.0", "end")
+            widget.insert("1.0", combined)
+        else:
+            prev = widget.get().strip()
+            combined = (prev + " " + text).strip() if prev else text
+            widget.delete(0, "end")
+            widget.insert(0, combined)
+
+        # Auto-save
+        self.profile.set_answer(qid, combined)
+        self._update_header_counts()
+        self._mic_label.configure(text="Saved. Record more or click next field.",
+                                   text_color=GREEN_LT)
+        self.after(3000, self._update_mic_label)
+
+    def _footer_mic_stop(self):
+        """Stop an in-progress footer mic recording."""
         global _voice_process
         self._recording = False
         if _voice_process:
@@ -1447,78 +1284,42 @@ class EstateInterviewApp(ctk.CTk):
             except Exception:
                 pass
             _voice_process = None
-        self._rec_btn.configure(text="⬤  Start Recording", fg_color=RED_DIM)
-        self._pause_btn.configure(state="disabled")
-        self._stop_btn.configure(state="disabled")
-        self._voice_status.configure(
-            text="Recording stopped. Edit below if needed, then Save & Continue.",
-            text_color=TEXT_DIM)
+        self._footer_rec_btn.configure(text="Record", fg_color=RED_DIM)
+        self._footer_stop_btn.configure(state="disabled")
+        self._mic_label.configure(text="Stopped.", text_color=TEXT_DIM)
+        self.after(2000, self._update_mic_label)
 
-    # ── Navigation ─────────────────────────────────────────────────────────────
+    # ── Chapter navigation ────────────────────────────────────────────────────
 
-    def _get_current_answer(self) -> str:
-        try:
-            if isinstance(self._answer_widget, ctk.CTkTextbox):
-                return self._answer_widget.get("1.0", "end").strip()
-            elif self._answer_widget:
-                return self._answer_widget.get().strip()
-        except Exception:
-            pass
-        return ""
-
-    def _go_next(self):
+    def _go_next_chapter(self):
+        """Save all fields and go to the next enabled chapter."""
         stop_speaking()
-        ch_idx = self.profile.current_chapter
-        q_idx  = self.profile.current_question
-        q      = CHAPTERS[ch_idx]["questions"][q_idx]
-        answer = self._get_current_answer()
-        if q.get("required") and not answer:
-            if self._answer_widget:
-                try:
-                    self._answer_widget.configure(border_color=RED)
-                    self.after(800, lambda: self._answer_widget.configure(border_color=BORDER))
-                except Exception:
-                    pass
-            return
-        if answer:
-            self.profile.set_answer(q["id"], answer)
-        self._flash_saved()
-        nq = q_idx + 1
-        ch = CHAPTERS[ch_idx]
-        if nq < len(ch["questions"]):
-            self._load_question(ch_idx, nq)
+        self._save_all_form_fields()
+        enabled = self.profile.enabled_indices()
+        ch_idx  = self.profile.current_chapter
+        ch_pos  = enabled.index(ch_idx) if ch_idx in enabled else 0
+        if ch_pos < len(enabled) - 1:
+            self._show_chapter_form(enabled[ch_pos + 1])
         else:
-            self._chapter_complete(ch_idx)
+            # Last chapter — export PDF
+            self._export_pdf()
 
-    def _go_prev(self):
+    def _go_prev_chapter(self):
+        """Save all fields and go to the previous enabled chapter."""
         stop_speaking()
-        self._save_current_answer()
-        ch_idx = self.profile.current_chapter
-        q_idx  = self.profile.current_question - 1
-        if q_idx < 0:
-            ch_idx -= 1
-            if ch_idx < 0:
-                return
-            q_idx = len(CHAPTERS[ch_idx]["questions"]) - 1
-        self._load_question(ch_idx, q_idx)
-
-    def _go_skip(self):
-        stop_speaking()
-        ch_idx = self.profile.current_chapter
-        q_idx  = self.profile.current_question
-        ch     = CHAPTERS[ch_idx]
-        nq     = q_idx + 1
-        if nq < len(ch["questions"]):
-            self._load_question(ch_idx, nq)
-        else:
-            self._chapter_complete(ch_idx)
+        self._save_all_form_fields()
+        enabled = self.profile.enabled_indices()
+        ch_idx  = self.profile.current_chapter
+        ch_pos  = enabled.index(ch_idx) if ch_idx in enabled else 0
+        if ch_pos > 0:
+            self._show_chapter_form(enabled[ch_pos - 1])
 
     def _jump_to_chapter(self, ch_idx: int):
         if not self.profile.is_chapter_enabled(CHAPTERS[ch_idx]["id"]):
             return
         stop_speaking()
-        self._save_current_answer()
-        self._show_chapter_landing(ch_idx)
+        self._save_all_form_fields()
+        self._show_chapter_form(ch_idx)
 
     def _toggle_chapter_in_sidebar(self, ch_id: str):
         if ch_id in self.profile.enabled_chapters:
@@ -1527,338 +1328,6 @@ class EstateInterviewApp(ctk.CTk):
             self.profile.enabled_chapters.append(ch_id)
         self.profile.save()
         self._render_chapter_list()
-
-    def _show_chapter_landing(self, ch_idx: int):
-        """Replace main content with chapter detail + time/mode picker."""
-        self.profile.current_chapter = ch_idx
-        ch  = CHAPTERS[ch_idx]
-        a, t = self.profile.chapter_counts(ch_idx)
-
-        self._chapter_header.configure(text=ch["title"])
-
-        for w in self._content.winfo_children():
-            w.destroy()
-        self._content.grid_columnconfigure(0, weight=1)
-
-        # ── Chapter info card ──────────────────────────────────────────────
-        ic = self._card(self._content, corner_radius=14)
-        ic.grid(row=0, column=0, sticky="ew", padx=40, pady=(32, 16))
-        ic.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(ic,
-                     text=f"Chapter {ch_idx + 1} of {len(CHAPTERS)}",
-                     font=("Segoe UI", 10), text_color=GOLD,
-                     anchor="w").grid(row=0, column=0, padx=28, pady=(22, 2), sticky="w")
-        ctk.CTkLabel(ic, text=ch["title"],
-                     font=("Segoe UI Bold", 26), text_color=TEXT,
-                     anchor="w").grid(row=1, column=0, padx=28, sticky="w")
-        if ch.get("subtitle"):
-            ctk.CTkLabel(ic, text=ch["subtitle"],
-                         font=("Segoe UI", 13), text_color=TEXT_DIM,
-                         anchor="w").grid(row=2, column=0, padx=28, pady=(2, 0), sticky="w")
-        ctk.CTkLabel(ic, text=ch["intro"],
-                     font=("Segoe UI", 13), text_color=TEXT_DIM,
-                     anchor="w", wraplength=560,
-                     justify="left").grid(row=3, column=0, padx=28, pady=(10, 0), sticky="w")
-
-        # Progress bar
-        pf = ctk.CTkFrame(ic, fg_color="transparent")
-        pf.grid(row=4, column=0, padx=28, pady=(16, 24), sticky="ew")
-        pf.grid_columnconfigure(0, weight=1)
-        if a == t and t > 0:
-            prog_text  = f"Complete — all {t} questions answered  ✓"
-            prog_color = GREEN_LT
-        elif a > 0:
-            prog_text  = f"{a} of {t} questions answered"
-            prog_color = GOLD
-        else:
-            prog_text  = f"{t} questions  ·  Not started yet"
-            prog_color = TEXT_DIM
-        ctk.CTkLabel(pf, text=prog_text, font=("Segoe UI Semibold", 12),
-                     text_color=prog_color, anchor="w").grid(row=0, column=0, sticky="w")
-        pb = ctk.CTkProgressBar(pf, height=6, fg_color=BORDER,
-                                 progress_color=GREEN_LT if a == t else GOLD)
-        pb.grid(row=1, column=0, sticky="ew", pady=(6, 0))
-        pb.set(a / t if t else 0)
-
-        # ── Time picker ───────────────────────────────────────────────────
-        tf = ctk.CTkFrame(self._content, fg_color="transparent")
-        tf.grid(row=1, column=0, sticky="ew", padx=40, pady=(4, 16))
-        ctk.CTkLabel(tf, text="HOW LONG DO YOU HAVE?",
-                     font=("Segoe UI Semibold", 10), text_color=TEXT_DIM,
-                     anchor="w").pack(anchor="w", pady=(0, 10))
-        time_row = ctk.CTkFrame(tf, fg_color="transparent")
-        time_row.pack(anchor="w")
-        self._time_btns   = {}
-        self._sel_minutes = 10
-        for lbl, mins in [("5 min", 5), ("10 min", 10), ("15 min", 15),
-                           ("20 min", 20), ("30 min", 30), ("No limit", None)]:
-            b = ctk.CTkButton(time_row, text=lbl, height=40, width=96,
-                              font=("Segoe UI", 12),
-                              fg_color=INPUT_BG, hover_color=CARD,
-                              text_color=TEXT, border_color=BORDER, border_width=1,
-                              command=lambda m=mins: self._pick_time(m))
-            b.pack(side="left", padx=(0, 8))
-            self._time_btns[mins] = b
-        self._pick_time(10)
-
-        # ── Mode selector ─────────────────────────────────────────────────
-        mf = ctk.CTkFrame(self._content, fg_color="transparent")
-        mf.grid(row=2, column=0, sticky="ew", padx=40, pady=(0, 20))
-        ctk.CTkLabel(mf, text="HOW WOULD YOU LIKE TO ANSWER?",
-                     font=("Segoe UI Semibold", 10), text_color=TEXT_DIM,
-                     anchor="w").pack(anchor="w", pady=(0, 12))
-        mode_row = ctk.CTkFrame(mf, fg_color="transparent")
-        mode_row.pack(anchor="w")
-
-        vc = self._card(mode_row, corner_radius=12, width=256, height=176)
-        vc.pack(side="left", padx=(0, 16))
-        vc.pack_propagate(False)
-        ctk.CTkLabel(vc, text="🎤", font=("Segoe UI", 28)).place(x=20, y=20)
-        ctk.CTkLabel(vc, text="Voice Mode",
-                     font=("Segoe UI Semibold", 14), text_color=TEXT,
-                     anchor="w").place(x=20, y=64)
-        ctk.CTkLabel(vc, text="Speak your answers aloud",
-                     font=("Segoe UI", 11), text_color=TEXT_DIM,
-                     anchor="w").place(x=20, y=90)
-        v_lbl   = "Select" if SR_AVAILABLE else "Unavailable"
-        v_state = "normal" if SR_AVAILABLE else "disabled"
-        self._voice_mode_btn = ctk.CTkButton(
-            vc, text=v_lbl, height=34, width=228, font=FONT_BODY, state=v_state,
-            fg_color="transparent", hover_color=CARD,
-            text_color=TEXT_DIM if SR_AVAILABLE else BORDER,
-            border_color=BORDER, border_width=1,
-            command=lambda: self._pick_mode("voice"))
-        self._voice_mode_btn.place(x=14, y=130)
-
-        tc = self._card(mode_row, corner_radius=12, width=256, height=176,
-                        border_color=GOLD)
-        tc.pack(side="left")
-        tc.pack_propagate(False)
-        ctk.CTkLabel(tc, text="✏️", font=("Segoe UI", 28)).place(x=20, y=20)
-        ctk.CTkLabel(tc, text="Text Mode",
-                     font=("Segoe UI Semibold", 14), text_color=TEXT,
-                     anchor="w").place(x=20, y=64)
-        ctk.CTkLabel(tc, text="Type at your own pace",
-                     font=("Segoe UI", 11), text_color=TEXT_DIM,
-                     anchor="w").place(x=20, y=90)
-        self._text_mode_btn = ctk.CTkButton(
-            tc, text="Selected ✓", height=34, width=228, font=FONT_BODY,
-            fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-            border_color=GOLD, border_width=1,
-            command=lambda: self._pick_mode("text"))
-        self._text_mode_btn.place(x=14, y=130)
-        self._mode_cards  = {"voice": vc, "text": tc}
-        self._input_mode  = getattr(self, "_input_mode", "text") or "text"
-        # Reflect existing mode choice
-        self._pick_mode(self._input_mode)
-
-        # ── Start / Resume button ─────────────────────────────────────────
-        sf = ctk.CTkFrame(self._content, fg_color="transparent")
-        sf.grid(row=3, column=0, sticky="w", padx=40, pady=(0, 40))
-        btn_text = "Resume this section  →" if a > 0 else "Start this section  →"
-        start_q  = (self.profile.current_question
-                    if ch_idx == self.profile.current_chapter else 0)
-        ctk.CTkButton(sf, text=btn_text,
-                      font=("Segoe UI Semibold", 15), height=52, width=260,
-                      fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                      command=lambda: self._begin_chapter(ch_idx, start_q)
-                      ).pack(side="left", padx=(0, 14))
-        if a > 0:
-            ctk.CTkButton(sf, text="Review answers",
-                          font=("Segoe UI", 13), height=42, width=160,
-                          fg_color="transparent", hover_color=CARD,
-                          text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                          command=lambda: self._load_question(ch_idx, 0, speak_intro=False)
-                          ).pack(side="left", padx=(0, 14))
-
-        # Back navigation
-        ctk.CTkButton(self._content, text="← Back to section list",
-                      font=("Segoe UI", 12), height=32,
-                      fg_color="transparent", hover_color=CARD,
-                      text_color=TEXT_DIM, border_color="transparent",
-                      command=self._show_chapter_selection
-                      ).grid(row=4, column=0, sticky="w", padx=36, pady=(4, 40))
-
-        self._render_chapter_list()
-
-    def _begin_chapter(self, ch_idx: int, start_q: int = 0):
-        """Start or resume a chapter after picking time and mode."""
-        if self._sel_minutes is not None:
-            self._session_end_time   = datetime.now() + timedelta(minutes=self._sel_minutes)
-            self._session_total_secs = float(self._sel_minutes * 60)
-            if hasattr(self, "_timer_bar") and self._timer_bar.winfo_exists():
-                self._timer_bar.pack(side="left", padx=(0, 14))
-                self._timer_bar.set(1.0)
-            self._tick_timer()
-        else:
-            self._session_end_time   = None
-            self._session_total_secs = 0
-        self._mode_btn.configure(
-            text="🎤 Voice" if self._input_mode == "voice" else "✏️  Text")
-        self._load_question(ch_idx, start_q, speak_intro=(start_q == 0))
-
-    def _finished_for_today(self):
-        """Save current answer and show editable draft review."""
-        self._save_current_answer()
-        stop_speaking()
-        if self._timer_id:
-            self.after_cancel(self._timer_id)
-            self._timer_id = None
-        self._session_end_time = None
-        self._show_review_edit()
-
-    def _show_review_edit(self):
-        """Show editable draft view of all answers."""
-        self._chapter_header.configure(text="Review & Edit Your Draft")
-        for w in self._content.winfo_children():
-            w.destroy()
-        self._content.grid_columnconfigure(0, weight=1)
-
-        # Top action bar
-        abar = ctk.CTkFrame(self._content, fg_color="transparent")
-        abar.grid(row=0, column=0, sticky="ew", padx=40, pady=(24, 8))
-        ctk.CTkLabel(abar,
-                     text="Your Estate Plan Draft",
-                     font=("Segoe UI Bold", 24), text_color=TEXT,
-                     anchor="w").pack(side="left")
-        ctk.CTkButton(abar, text="Export PDF",
-                      font=("Segoe UI Semibold", 12), height=40, width=140,
-                      fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                      command=self._export_pdf).pack(side="right")
-        ctk.CTkLabel(abar,
-                     text=f"{self.profile.pct()}% complete",
-                     font=("Segoe UI", 12), text_color=TEXT_DIM).pack(side="right", padx=16)
-
-        row_idx = 1
-        # Editable fields grouped by chapter
-        for ch_idx, ch in enumerate(CHAPTERS):
-            if not self.profile.is_chapter_enabled(ch["id"]):
-                continue
-            a, t = self.profile.chapter_counts(ch_idx)
-            if a == 0:
-                continue
-
-            # Chapter header
-            ch_hdr = ctk.CTkFrame(self._content, fg_color="transparent")
-            ch_hdr.grid(row=row_idx, column=0, sticky="ew",
-                        padx=40, pady=(20, 4))
-            done_mark = "  ✓" if self.profile.chapter_done(ch_idx) else ""
-            ctk.CTkLabel(ch_hdr,
-                         text=f"Chapter {ch_idx + 1}  —  {ch['title']}{done_mark}",
-                         font=("Segoe UI Semibold", 15),
-                         text_color=GREEN_LT if self.profile.chapter_done(ch_idx) else GOLD,
-                         anchor="w").pack(side="left")
-            row_idx += 1
-
-            for q in ch["questions"]:
-                ans = self.profile.get_answer(q["id"])
-                if not ans:
-                    continue
-                qf = self._card(self._content, corner_radius=8)
-                qf.grid(row=row_idx, column=0, sticky="ew", padx=40, pady=3)
-                qf.grid_columnconfigure(0, weight=1)
-                ctk.CTkLabel(qf, text=q["text"],
-                             font=("Segoe UI Semibold", 12), text_color=TEXT,
-                             anchor="w", wraplength=620,
-                             justify="left").grid(row=0, column=0,
-                                                  padx=18, pady=(12, 4), sticky="w")
-                tb = ctk.CTkTextbox(qf, height=60, font=FONT_BODY,
-                                    fg_color=INPUT_BG, border_color=BORDER,
-                                    border_width=1, text_color=TEXT, corner_radius=6)
-                tb.grid(row=1, column=0, padx=14, pady=(0, 12), sticky="ew")
-                tb.insert("1.0", ans)
-
-                def _make_saver(qid, widget):
-                    def _save(e=None):
-                        val = widget.get("1.0", "end").strip()
-                        if val:
-                            self.profile.set_answer(qid, val)
-                    return _save
-
-                tb.bind("<FocusOut>", _make_saver(q["id"], tb))
-                row_idx += 1
-
-        # Bottom actions
-        ba = ctk.CTkFrame(self._content, fg_color="transparent")
-        ba.grid(row=row_idx, column=0, sticky="ew", padx=40, pady=(24, 48))
-        ctk.CTkButton(ba, text="← Back to Interview",
-                      font=FONT_BODY, height=40, width=200,
-                      fg_color="transparent", hover_color=CARD,
-                      text_color=TEXT_DIM, border_color=BORDER, border_width=1,
-                      command=lambda: self._show_chapter_landing(
-                          self.profile.current_chapter)).pack(side="left", padx=(0, 12))
-        ctk.CTkButton(ba, text="Export PDF",
-                      font=("Segoe UI Semibold", 12), height=40, width=160,
-                      fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                      command=self._export_pdf).pack(side="left")
-        note = ctk.CTkFrame(ba, fg_color="transparent")
-        note.pack(side="right")
-        ctk.CTkLabel(note,
-                     text="Need to open in Word?  LibreOffice is free.",
-                     font=("Segoe UI", 11), text_color=TEXT_DIM).pack()
-        ctk.CTkLabel(note,
-                     text="libreoffice.org",
-                     font=("Segoe UI", 11), text_color=GOLD).pack()
-
-        self._render_chapter_list()
-        self._update_progress()
-
-    # ── Chapter complete ───────────────────────────────────────────────────────
-
-    def _chapter_complete(self, ch_idx: int):
-        stop_speaking()
-        ch = CHAPTERS[ch_idx]
-        for w in self._content.winfo_children():
-            w.destroy()
-        card = self._card(self._content, border_color=GOLD, corner_radius=14)
-        card.grid(row=0, column=0, sticky="nsew", padx=60, pady=60)
-        self._content.grid_columnconfigure(0, weight=1)
-        card.grid_columnconfigure(0, weight=1)
-
-        ctk.CTkLabel(card, text="✓", font=("Segoe UI", 52),
-                     text_color=GOLD).grid(pady=(44, 8))
-        ctk.CTkLabel(card, text=ch["title"],
-                     font=("Segoe UI Bold", 24), text_color=TEXT).grid()
-        ctk.CTkLabel(card, text="Complete",
-                     font=("Segoe UI", 14), text_color=GOLD).grid(pady=(0, 16))
-        ctk.CTkLabel(card, text=ch["complete_message"],
-                     font=("Segoe UI", 13), text_color=TEXT_DIM,
-                     wraplength=480, justify="center").grid(padx=40, pady=(0, 24))
-        ctk.CTkLabel(card, text=f"{self.profile.pct()}% of your estate plan is complete.",
-                     font=("Segoe UI Semibold", 12), text_color=TEXT).grid(pady=(0, 8))
-        pb = ctk.CTkProgressBar(card, height=8, fg_color=BORDER,
-                                 progress_color=GOLD, width=360)
-        pb.grid(pady=(0, 32))
-        pb.set(self.profile.pct() / 100)
-
-        next_ch = self.profile.next_enabled_chapter(ch_idx)
-        if next_ch is not None:
-            ctk.CTkButton(card,
-                          text=f"Continue to {CHAPTERS[next_ch]['title']}  →",
-                          font=("Segoe UI Semibold", 13), height=46, width=320,
-                          fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                          command=lambda: self._load_question(next_ch, 0, speak_intro=True)
-                          ).grid(pady=(0, 12))
-        else:
-            ctk.CTkLabel(card, text="Your plan is complete.",
-                         font=("Segoe UI Bold", 16), text_color=GREEN_LT).grid(pady=(0, 12))
-            ctk.CTkButton(card, text="Export PDF",
-                          font=("Segoe UI Semibold", 14), height=48, width=300,
-                          fg_color=GOLD, hover_color=GOLD_HOVER, text_color="#0D1117",
-                          command=self._export_pdf).grid(pady=(0, 12))
-
-        ctk.CTkButton(card, text="✔  Done for Today — save & review draft",
-                      font=("Segoe UI", 12), height=36,
-                      fg_color="transparent", hover_color=CARD, text_color=GREEN,
-                      border_color=GREEN, border_width=1,
-                      command=self._finished_for_today).grid(pady=(0, 40))
-
-        self._chapter_header.configure(text=f"{ch['title']}  —  Complete")
-        self._render_chapter_list()
-        self._update_progress()
-        if not self.muted:
-            speak(ch["complete_message"])
 
     # ── Helpers ────────────────────────────────────────────────────────────────
 

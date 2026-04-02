@@ -167,8 +167,11 @@ Build these in order. Each builds on the previous.
 
 ```
 Obsidian vault:    C:\Users\mhhro\Documents\Obsidian Vault
-Gold vault:        E:\
+Gold vault:        X:\   (Cryptomator, permanent drive letter — human-curated, going forward)
+Silver vault:      Y:\   (Cryptomator, separate vault, permanent drive letter — machine-curated, legacy)
+Bronze vault:      configured in vault_config.json when connected (external USB or NAS, same structure as Silver)
 Gold backup:       G:\My Drive\Gold-Backup
+Silver backup:     G:\My Drive\Silver-Backup
 Estate Ops:        G:\My Drive\Estate Ops
 MHH Inbox:         G:\My Drive\MHH-Inbox
 HBS Inbox:         G:\My Drive\HBS-Inbox
@@ -176,7 +179,12 @@ Staging Intake:    G:\My Drive\Staging-Intake
 Capture Archive:   G:\My Drive\Capture-Archive
 ```
 
-Note: These paths are for the estate laptop, not the dev machine. Scripts should use config files or environment variables for paths so they work on both machines.
+**Vault distinction:**
+- Gold (X:\) — filed by MHH personally, permanent record going forward
+- Silver (Y:\) — filed by local LLM, legacy content, machine provenance tracked
+- Bronze — Silver overflow on external storage, same structure, manual management
+
+Note: These paths are for the estate laptop, not the dev machine. Scripts use config files or environment variables for paths so they work on both machines. Bronze vault path is never hardcoded — always read from vault_config.json.
 
 ---
 

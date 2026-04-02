@@ -1,0 +1,25 @@
+{
+  "name": "__VERIFY__",
+  "created": "April 01, 2026",
+  "last_updated": "April 01, 2026",
+  "answers": {},
+  "current_chapter": 4,
+  "current_question": 0,
+  "enabled_chapters": [
+    "about_you",
+    "your_family",
+    "key_people",
+    "your_documents",
+    "finances",
+    "property",
+    "digital_life",
+    "your_wishes",
+    "messages",
+    "advanced_estate",
+    "home_management",
+    "vehicles_property",
+    "digital_media_systems",
+    "your_life_story",
+    "family_history"
+  ]
+}

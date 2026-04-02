@@ -156,21 +156,29 @@ def ask_provenance(filepath, config):
     print("  1 = Family   (visible to all family members)")
     print("  2 = MHH      (visible to Marty only)")
     print("  3 = MHH_only (fully restricted, sensitive)")
-    vis_choice = input("  choice [1/2/3, default=1] > ").strip()
     vis_map = {"1": "Family", "2": "MHH", "3": "MHH_only", "": "Family"}
-    provenance["visibility"] = vis_map.get(vis_choice, "Family")
+    while True:
+        vis_choice = input("  choice [1/2/3, default=1] > ").strip()
+        if vis_choice in vis_map:
+            break
+        print("  Enter 1, 2, or 3 (or press Enter for Family).")
+    provenance["visibility"] = vis_map[vis_choice]
     print(f"  → visibility: {provenance['visibility']}")
 
     # Classification
     print()
     print("  Classification — what type of content is this?")
     print("  1=taxes  2=insurance  3=property  4=legal  5=medical  6=general")
-    cls_choice = input("  choice [1-6, default=6] > ").strip()
     cls_map = {
         "1": "taxes", "2": "insurance", "3": "property",
         "4": "legal", "5": "medical", "6": "general", "": "general"
     }
-    provenance["classification"] = cls_map.get(cls_choice, "general")
+    while True:
+        cls_choice = input("  choice [1-6, default=6] > ").strip()
+        if cls_choice in cls_map:
+            break
+        print("  Enter a number 1 through 6 (or press Enter for general).")
+    provenance["classification"] = cls_map[cls_choice]
     print(f"  → classification: {provenance['classification']}")
 
     return provenance, fm, body

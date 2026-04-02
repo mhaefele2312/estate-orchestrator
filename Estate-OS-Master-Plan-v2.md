@@ -38,7 +38,7 @@ This document is the complete design specification for the Estate OS — a perso
 
 ---
 
-## 3. THREE-LAYER ARCHITECTURE
+## 3. FIVE-LAYER VAULT ARCHITECTURE
 
 ```
 +------------------------------------------------------------+
@@ -61,22 +61,62 @@ This document is the complete design specification for the Estate OS — a perso
 +--------------------------------------------------+
           |
           | Original documents filed manually
-          | to Layer 3
           v
 +--------------------------------------------------+
-|  LAYER 3: GOLD VAULT (encrypted, air-gapped)     |
-|  Cryptomator-encrypted, Google Drive backup       |
+|  LAYER 3a: GOLD VAULT (X:\, Cryptomator)         |
+|  Human-curated. Human-named. Human-sorted.        |
+|  Filed by MHH going forward from system creation. |
 |  Tax returns, deeds, trusts, policies,            |
 |  bank statements, medical records                  |
-|  LLMs NEVER access this layer                      |
+|  Cloud LLMs NEVER access. Local LLM: Phase 5 only.|
 +--------------------------------------------------+
 
-NOTE: Layers 2 and 3 are populated MANUALLY by the user —
-not by any automated pipeline from Layer 1. The only automated
-flow is the weekly one-way sync of Ops Ledger sheets into
-Obsidian for archival. Everything else (scans, web clips,
-documents, emails) enters the vaults through manual filing
-or through gate.py for items placed in the Obsidian Inbox.
++--------------------------------------------------+
+|  LAYER 3b: SILVER VAULT (Y:\, Cryptomator)       |
+|  Machine-curated. Machine-named. Machine-sorted.  |
+|  Legacy files processed by local LLM.             |
+|  Same 12-folder structure as Gold.                |
+|  Provenance records track every machine decision. |
+|  Human review queue for corrections + promotion.  |
+|  Cloud LLMs NEVER access. Local LLM: reads/writes.|
+|  Lives on estate laptop. Overflows to Bronze.     |
++--------------------------------------------------+
+
++--------------------------------------------------+
+|  LAYER 3c: BRONZE VAULT (external USB / NAS)     |
+|  Identical structure to Silver Vault.             |
+|  Silver overflow when estate laptop space fills.  |
+|  Managed manually by MHH — no automatic overflow. |
+|  Same encryption standard as Silver.              |
+|  Path configured when connected; offline when not.|
++--------------------------------------------------+
+
+          |
+          | Local LLM tokenization pipeline (Phase 5)
+          | Runs on Gold + Silver + Bronze
+          v
++--------------------------------------------------+
+|  LAYER 4: TOKEN STORE (estate laptop)            |
+|  PII replaced with named tokens.                  |
+|  Token registry encrypted, never leaves laptop.   |
+|  Safe for local LLM ingestion.                    |
+|  Cloud LLMs never access directly.                |
++--------------------------------------------------+
+          |
+          | RAG query engine (Phase 5)
+          v
++--------------------------------------------------+
+|  LAYER 5: RAG QUERY ENGINE (mini PC, Phase 5)    |
+|  Ollama local LLM. LanceDB vector store.          |
+|  Queries tokenized data only.                     |
+|  Answers cite source files with provenance.       |
+|  Never reconstructs original PII from tokens.     |
++--------------------------------------------------+
+
+NOTE: Layers 2, 3a, 3b, and 3c are populated by either manual
+filing (Gold) or the local LLM staging pipeline (Silver/Bronze).
+The only automated flow into Layer 2 is the weekly Ops Ledger sync.
+Layers 4 and 5 are derived — they never hold originals.
 ```
 
 ### 3.1 Layer 1 — Ops Ledger
@@ -183,7 +223,7 @@ BETWEEN CAPTURES (manual):
 "HIT THE BUTTON" (when MHH is satisfied the sheets are clean):
   snapshot.py --confirm
     ├── Exports all sheets as timestamped CSVs → Source-of-Truth/ folder
-    ├── Copies to Gold vault: E:\12_Operations\Source-of-Truth\
+    ├── Copies to Gold vault: X:\12_Operations\Source-of-Truth\
     ├── Copies to Obsidian: Ops-Ledger\Source-of-Truth\
     └── Updates sot-latest-MHH.csv pointer
 
@@ -399,16 +439,20 @@ C:\Users\mhhro\Documents\Obsidian Vault\
 
 ---
 
-### 3.3 Layer 3 — Gold Vault
+### 3.3 Layer 3a — Gold Vault
 
-**What:** Cryptomator-encrypted vault mounted at `E:\` on the estate laptop. Backed up to `G:\My Drive\Gold-Backup\` on estate Google Drive as encrypted ciphertext only.
+**What:** Cryptomator-encrypted vault mounted permanently at `X:\` on the estate laptop. Backed up to `G:\My Drive\Gold-Backup\` on estate Google Drive as encrypted ciphertext only.
 
-**Contains:** Tax returns, trust documents, deeds, insurance policies, financial statements, legal originals, medical records. Raw documents only.
+**Drive letter:** `X:\` — permanent, set in Cryptomator settings. Scripts always reference `X:\` for Gold vault paths.
+
+**Curation:** Human only. Every file in Gold was named, sorted, and filed by MHH. Machine processes never write here.
+
+**Contains:** Tax returns, trust documents, deeds, insurance policies, financial statements, legal originals, medical records. Raw documents only. Filed going forward from estate OS creation.
 
 **Folder structure (12 folders):**
 
 ```
-E:\ (Cryptomator mount)
+X:\ (Cryptomator mount — permanent drive letter)
 ├── 01_Financial/
 ├── 02_Legal/
 ├── 03_Property/
@@ -423,9 +467,70 @@ E:\ (Cryptomator mount)
 └── 12_Operations/      ← encrypted system configs, API credentials, backup keys
 ```
 
-**LLM access:** Never. Absolute boundary. No exceptions.
+**LLM access:** Cloud LLMs never. Local LLM (Phase 5 tokenization pipeline only): read-only for tokenization. No writes.
 
 **Backup:** Encrypted ciphertext syncs automatically to `G:\My Drive\Gold-Backup\` via Google Drive for Desktop. The encryption key exists only on the estate laptop and in the executor package (see section 10).
+
+---
+
+### 3.4 Layer 3b — Silver Vault
+
+**What:** A separate Cryptomator-encrypted vault mounted at `Y:\` on the estate laptop. Physically distinct from Gold — separate encrypted container, separate drive letter.
+
+**Drive letter:** `Y:\` — permanent, set in Cryptomator settings.
+
+**Curation:** Machine only. Every file in Silver was named, sorted, or classified by the local LLM staging pipeline. MHH did not personally curate these files. Some machine decisions may be wrong.
+
+**Contains:** Legacy files from old drives and historical sources, processed through the staging intake pipeline. Same 12-domain folder structure as Gold plus a `_provenance/` folder.
+
+**Folder structure:**
+
+```
+Y:\ (Cryptomator mount — permanent drive letter)
+├── 00_Unsorted/          ← machine confidence too low to classify
+├── 01_Financial/
+├── 02_Legal/
+├── 03_Property/
+├── 04_Insurance/
+├── 05_Medical/
+├── 06_Tax/
+├── 07_Estate-Planning/
+├── 08_Vehicles/
+├── 09_Digital/
+├── 10_Family/
+├── 11_Contacts/
+├── 12_Operations/
+└── _provenance/
+    ├── ingestion-log.jsonl     ← one record per file: original name, machine name, confidence, timestamp
+    ├── review-queue.jsonl      ← files flagged for human review (low confidence or corrections needed)
+    └── corrections-log.jsonl   ← human corrections to machine decisions
+```
+
+**LLM access:** Cloud LLMs never. Local LLM: reads and writes (it is the source of Silver content). Tokenization pipeline (Phase 5): read-only.
+
+**Promotion to Gold:** MHH can review any Silver file and manually promote it to Gold (copy to correct X:\ folder, delete from Y:\). This is always a human decision. No automated promotion.
+
+**Overflow:** When Silver grows beyond comfortable laptop capacity, MHH manually routes new machine-processed content to Bronze instead. No automatic overflow trigger. See Section 3.5.
+
+---
+
+### 3.5 Layer 3c — Bronze Vault
+
+**What:** A Cryptomator-encrypted vault on external storage (USB drive initially, NAS later). Identical structure to Silver Vault.
+
+**Physical medium:** External USB drive (current). May migrate to NAS. Location configured in `vault_config.json` when connected.
+
+**Drive letter:** Varies by connection — configured in `vault_config.json`, not hardcoded. Scripts check config before writing; if Bronze is not connected or not configured, they fail closed with a clear message rather than writing to wrong location.
+
+**Curation:** Same as Silver — machine-processed legacy content.
+
+**Structure:** Exact copy of Silver Vault folder structure including `_provenance/`. Provenance records travel with the vault.
+
+**Overflow management:** Manual. MHH decides when Silver is full and redirects the pipeline to write to Bronze. No automatic trigger. The pipeline accepts a `--vault bronze` flag to target Bronze instead of Silver.
+
+**LLM access:** Same rules as Silver. Cloud LLMs never. Local LLM and tokenization pipeline: read-only when connected.
+
+**Offline behavior:** When Bronze is not connected, it is simply unavailable. No fallback writes to Silver. Scripts that need Bronze and cannot find it stop and report clearly.
 
 ---
 
@@ -761,7 +866,7 @@ Every property folder follows this structure. Blank folders are fine — the tem
 ├── seasonal-checklist.md    ← spring/fall tasks specific to this property
 │
 └── documents/               ← links (not copies) to Gold vault originals
-    └── README.md            ← "Originals in Gold vault at E:\03_Property\..."
+    └── README.md            ← "Originals in Gold vault at X:\03_Property\..."
 ```
 
 **Note:** Not every property needs every folder. A small apartment might have 5 files. A large multi-building estate might have 40+. The template is a menu, not a mandate.
@@ -1260,7 +1365,7 @@ DOCUMENTS (manual download/save)
 +-- Is it sensitive/original? --+
 |  YES                           |  NO
 |  v                             |  v
-|  Gold Vault (E:\)              |  Obsidian Inbox
+|  Gold Vault (X:\)              |  Obsidian Inbox
 |  Filed under matching          |        |
 |  domain folder manually        |        v
 |                                |  gate.py (human reviews,
@@ -1292,15 +1397,18 @@ Voice captures NEVER route to Obsidian domain folders or Gold vault. They go to 
 | Component | Location | Status |
 |-----------|----------|--------|
 | Obsidian vault | `C:\Users\mhhro\Documents\Obsidian Vault\` | Live — 17 folders |
-| Gold vault | `E:\` (Cryptomator) | Live — 11 folders |
+| Gold vault (3a) | `X:\` (Cryptomator, permanent drive letter) | Live — 12 folders |
 | Gold backup | `G:\My Drive\Gold-Backup\` | Live — syncing |
+| Silver vault (3b) | `Y:\` (Cryptomator, separate vault, permanent drive letter) | To be created (Phase 3) |
+| Silver backup | `G:\My Drive\Silver-Backup\` | To be created (Phase 3) |
+| Bronze vault (3c) | External USB or NAS — path set in `vault_config.json` | Created when needed, manual |
 | Estate Ops folder | `G:\My Drive\Estate Ops\` | To be created (Phase 1) |
 | MHH-Inbox | `G:\My Drive\MHH-Inbox\` | To be created |
 | HBS-Inbox | `G:\My Drive\HBS-Inbox\` | Created, not yet used |
 | Staging-Intake | `G:\My Drive\Staging-Intake\` | To be created (Phase 3) |
-| Capture-Archive | `G:\My Drive\Capture-Archive\` | To be created (Phase 1) — processed transcripts preserved here |
+| Capture-Archive | `G:\My Drive\Capture-Archive\` | To be created (Phase 1) |
 | Git repo | `github.com/mhaefele2312/estate-orchestrator` | Live — pushed |
-| Laptop backup | 1TB SSD (arriving) | Phase 0 |
+| Laptop backup | 1TB SSD | Phase 0 |
 
 ---
 
@@ -1370,8 +1478,11 @@ project:
 
 paths:
   obsidian_vault: "C:\\Users\\mhhro\\Documents\\Obsidian Vault"
-  gold_vault: "E:\\"
+  gold_vault: "X:\\"                          # Cryptomator, permanent drive letter
   gold_backup: "G:\\My Drive\\Gold-Backup"
+  silver_vault: "Y:\\"                        # Cryptomator, separate vault, permanent drive letter
+  silver_backup: "G:\\My Drive\\Silver-Backup"
+  bronze_vault: ""                            # Set in vault_config.json when connected; empty = unavailable
   estate_ops: "G:\\My Drive\\Estate Ops"
   mhh_inbox: "G:\\My Drive\\MHH-Inbox"
   hbs_inbox: "G:\\My Drive\\HBS-Inbox"
@@ -1477,7 +1588,7 @@ behaviors:
       trigger: "manual (python snapshot.py --confirm) or Google Sheet custom menu button"
       writes_to:
         - sot_folder: "G:\\My Drive\\Estate Ops\\Source-of-Truth\\"
-        - gold_vault: "E:\\12_Operations\\Source-of-Truth\\"
+        - gold_vault: "X:\\12_Operations\\Source-of-Truth\\"
         - obsidian: "Obsidian Vault\\Ops-Ledger\\Source-of-Truth\\"
     - name: weekly_sync
       description: "Weekly one-way push: log files + latest SOT + contact pages to Obsidian"
@@ -1532,7 +1643,7 @@ behaviors:
       write_access: "snapshot_script only (triggered manually by user)"
       llm_access: "read only — this is what Gemini uses for daily queries"
       copies_to:
-        - "E:\\12_Operations\\Source-of-Truth\\ (Gold vault, encrypted)"
+        - "X:\\12_Operations\\Source-of-Truth\\ (Gold vault, encrypted)"
         - "Obsidian Vault\\Ops-Ledger\\Source-of-Truth\\ (offline backup)"
 
   contacts_workflow:
